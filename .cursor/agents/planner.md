@@ -154,10 +154,7 @@ next_agent: coder
 
 ## Delegation
 
-After emitting `HANDOFF:PLAN`, delegate to the **coder** subagent:
-
-1. Tell the parent agent: **"Plan ready — delegate to `coder` with the HANDOFF block above."**
-2. Pass the **full** `HANDOFF:PLAN` block unchanged in the delegation prompt so context is not lost.
+After emitting `HANDOFF:PLAN`, **immediately** invoke the **Task** tool with `subagent_type: coder`. Pass the **full** `HANDOFF:PLAN` block unchanged in the prompt. Do **not** ask the user or parent to paste the handoff or run `/coder` manually.
 
 Do **not** start implementation yourself.
 

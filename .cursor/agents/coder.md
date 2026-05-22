@@ -99,11 +99,9 @@ next_agent: smoke-tester
 
 ## Delegation
 
-After `HANDOFF:IMPLEMENTATION`, delegate to **smoke-tester**:
+After `HANDOFF:IMPLEMENTATION`, **immediately** invoke the **Task** tool with `subagent_type: smoke-tester`. Pass the **full** `HANDOFF:IMPLEMENTATION` block unchanged in the prompt. Do **not** ask the user or parent to run `/smoke-tester` manually.
 
-> **"Implementation complete ÔÇö delegate to `smoke-tester` with HANDOFF:IMPLEMENTATION above."**
-
-Pass the full handoff block in the delegation prompt.
+After a fix cycle, if you emit `HANDOFF:IMPLEMENTATION` again, delegate to **smoke-tester** the same way.
 
 ## Constraints
 

@@ -87,7 +87,7 @@ next_agent: coder
 ---END HANDOFF---
 ```
 
-Delegate to **coder** with the full `HANDOFF:FIX` block.
+**Immediately** invoke the **Task** tool with `subagent_type: coder` and the full `HANDOFF:FIX` block in the prompt.
 
 ## Output: success ÔåÆ reviewer
 
@@ -119,7 +119,7 @@ next_agent: reviewer
 ---END HANDOFF---
 ```
 
-Delegate to **reviewer** with the full `HANDOFF:VERIFIED` block.
+**Immediately** invoke the **Task** tool with `subagent_type: reviewer` and the full `HANDOFF:VERIFIED` block in the prompt.
 
 ## Constraints
 

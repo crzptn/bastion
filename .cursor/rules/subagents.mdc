@@ -21,9 +21,18 @@ alwaysApply: true
 | smoke-tester | `/smoke-tester` | Build, test, HTTP smoke checks |
 | reviewer | `/reviewer` | Readonly review; opens PR on approval |
 
-**Delivery pipeline** (manual steps): `/planner` → `/coder` → `/smoke-tester` → `/reviewer`
+**Delivery pipeline:** `/planner` → `/coder` → `/smoke-tester` → `/reviewer`
 
-Do not auto-chain agents unless the user asks. After each step, **paste the full `HANDOFF` block** into the next agent's prompt.
+**Auto-handoff (required):** When a pipeline agent finishes with a `HANDOFF` block and `next_agent` set, **immediately** delegate to that agent via the **Task** tool. Pass the **full** `HANDOFF` block unchanged in the Task prompt. Do **not** stop and ask the user to run the next slash command or paste the handoff manually.
+
+| HANDOFF | Next agent |
+|---------|------------|
+| `HANDOFF:PLAN` | `coder` |
+| `HANDOFF:IMPLEMENTATION` | `smoke-tester` |
+| `HANDOFF:VERIFIED` | `reviewer` |
+| `HANDOFF:FIX` | `coder` |
+
+**issue-creator** is standalone — no auto-chain after it.
 
 ## HANDOFF blocks
 
@@ -36,7 +45,7 @@ Copy unchanged between agents:
 
 ## Small tasks
 
-For typos or one-file fixes, skip planner and smoke-tester; use `/coder` then `/reviewer` if needed.
+For typos or one-file fixes, skip planner and smoke-tester; use `/coder` then auto-handoff to `reviewer` with `HANDOFF:VERIFIED` or a minimal verification summary if smoke-tester was skipped.
 
 ## Verification commands
 

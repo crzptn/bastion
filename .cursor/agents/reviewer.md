@@ -78,7 +78,7 @@ next_agent: coder
 ---END HANDOFF---
 ```
 
-Delegate to **coder** with the full `HANDOFF:FIX` block. Do **not** open a PR yet.
+**Immediately** invoke the **Task** tool with `subagent_type: coder` and the full `HANDOFF:FIX` block in the prompt. Do **not** open a PR yet.
 
 ## Output: approved ÔåÆ close issue and open PR
 
