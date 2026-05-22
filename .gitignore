@@ -1,0 +1,29 @@
+# Binaries
+/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace
+go.work
+go.work.sum
+
+# Frontend
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep
+
+# Environment
+.env
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
