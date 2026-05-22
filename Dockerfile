@@ -1,5 +1,15 @@
 # syntax=docker/dockerfile:1
 
+FROM oven/bun:1 AS web-builder
+
+WORKDIR /src/web
+
+COPY web/package.json web/bun.lock ./
+RUN bun install --frozen-lockfile
+
+COPY web/ ./
+RUN bun run build
+
 FROM golang:1.26-alpine AS builder
 
 RUN apk add --no-cache git ca-certificates
@@ -17,14 +27,14 @@ RUN if [ ! -f deps/minmux/router/go.mod ]; then \
 
 COPY cmd ./cmd
 COPY internal ./internal
-COPY web/dist ./web/dist
+COPY --from=web-builder /src/web/dist ./web/dist
 
 RUN CGO_ENABLED=0 go build -o /api ./cmd/api
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=builder /api /api
-COPY web/dist /web/dist
+COPY --from=web-builder /src/web/dist /web/dist
 
 EXPOSE 8080
 

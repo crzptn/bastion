@@ -26,6 +26,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgres://bastion:bastion@db:5432/bastion?sslmode=disable}
       API_ADDR: ${API_ADDR:-:8080}
+      WEB_DIST: /web/dist
     ports:
       - "${API_PORT:-8080}:8080"
 
