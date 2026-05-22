@@ -16,7 +16,7 @@ alwaysApply: true
 | Agent | Slash | Role |
 |-------|-------|------|
 | issue-creator | `/issue-creator` | Issues, labels, milestones — **standalone**, stops when done |
-| planner | `/planner` | Pick issue, create `task/<N>-<slug>` branch, plan (no source edits) |
+| planner | `/planner` | Pick issue, `gh issue develop` → linked `task/<N>-<slug>` branch, plan (no source edits) |
 | coder | `/coder` | Implement from `HANDOFF:PLAN` or `HANDOFF:FIX` |
 | smoke-tester | `/smoke-tester` | Build, test, HTTP smoke checks |
 | reviewer | `/reviewer` | Readonly review; opens PR on approval |

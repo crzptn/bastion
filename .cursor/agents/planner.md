@@ -51,9 +51,9 @@ Fetch full issue details:
 gh issue view <NUMBER> --json number,title,body,labels,state,url
 ```
 
-### 2. Create and check out the task branch
+### 2. Create, link, and check out the task branch
 
-Every new issue gets its own branch from the repo **default branch** (usually `main`).
+Every issue gets a **development branch linked on GitHub** (visible under the issue’s **Development** section). Use `gh issue develop` — do **not** use plain `git switch -c` alone (that creates a local branch GitHub does not associate with the issue).
 
 **Branch name format:**
 
@@ -75,27 +75,50 @@ task/<issue-number>-<slugified-issue-title>
 | `#13` — WebSocket hub | `task/13-websocket-hub` |
 | `#42` — Add lobby REST API | `task/42-add-lobby-rest-api` |
 
-**Git steps** (from repo root):
+**Steps** (from repo root):
 
 ```bash
-# Default branch name (e.g. main)
-DEFAULT=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
+NUMBER=<issue-number>
+BRANCH="task/<NUMBER>-<slug>"   # build from issue number + slugified title
 
 git status --porcelain   # if dirty, stop and ask the user before branching
 git fetch origin
+
+DEFAULT=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
 git switch "$DEFAULT"
 git pull --ff-only origin "$DEFAULT"
 
-BRANCH="task/<NUMBER>-<slug>"   # build from issue number + slugified title
-
-git switch "$BRANCH" 2>/dev/null || git switch -c "$BRANCH"
-git branch --show-current
+# Already linked on GitHub for this issue?
+gh issue develop --list "$NUMBER"
 ```
 
-- If `task/<NUMBER>-<slug>` already exists locally, **switch to it** (do not recreate).
-- Do **not** commit, push, or edit tracked files on this branch.
+**If `--list` shows `BRANCH` (or the expected task branch):**
 
-Report the branch name to the user and include it in `HANDOFF:PLAN`.
+```bash
+git switch "$BRANCH" 2>/dev/null || git switch -c "$BRANCH" "origin/$BRANCH"
+git pull --ff-only origin "$BRANCH" 2>/dev/null || true
+```
+
+**Else — create and link via GitHub (required for new work):**
+
+```bash
+gh issue develop "$NUMBER" --name "$BRANCH" --base "$DEFAULT" --checkout
+```
+
+This registers the branch on the issue and checks it out locally from the default branch.
+
+**Verify the link:**
+
+```bash
+gh issue develop --list "$NUMBER"
+git branch --show-current   # must equal BRANCH
+```
+
+- If local `BRANCH` already exists but `--list` is empty, prefer `gh issue develop` with `--name` after updating default; if GitHub rejects a duplicate name, switch to the local branch and report that linking may need manual cleanup on the issue.
+- Do **not** commit or edit tracked files on this branch.
+- **Push** only if `gh issue develop` fails because the branch exists on the remote but is unlinked; then `git push -u origin "$BRANCH"` and re-check `--list`. Do not push implementation commits.
+
+Report the branch name, issue URL, and confirmation that `gh issue develop --list` shows the branch. Include both in `HANDOFF:PLAN`.
 
 ### 3. Analyze the codebase
 
@@ -123,6 +146,7 @@ issue_url: <https://github.com/.../issues/N>
 issue_title: <title>
 milestone: <milestone title or "none">
 branch_name: task/<N>-<slug>
+branch_linked: true   # confirmed via gh issue develop --list <N>
 
 summary: |
   <1-3 sentences: what we're building and why>
@@ -161,6 +185,7 @@ Do **not** start implementation yourself.
 ## Constraints
 
 - No source edits: no `Write`, `StrReplace`, `EditNotebook`, or commits
-- **Git allowed only** for: `fetch`, `switch`, `pull`, and creating/checking out `task/<N>-<slug>` branches
+- **Git allowed only** for: `fetch`, `switch`, `pull`, `push -u` (only when needed to satisfy `gh issue develop` / remote tracking — no implementation commits)
+- **Branch linking required:** use `gh issue develop` so the branch appears on the issue; never rely on naming convention alone
 - Use `gh` for all GitHub API operations
 - Prefer minimal scope aligned with the issue; call out ambiguities in the plan instead of guessing
