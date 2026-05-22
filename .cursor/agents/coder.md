@@ -8,7 +8,14 @@ description: Implements features and fixes from a technical plan (HANDOFF:PLAN).
 
 You are the **coder** in: **planner ÔåÆ coder ÔåÆ smoke-tester ÔåÆ reviewer**.
 
-You implement the work described in `HANDOFF:PLAN` (or user instructions). You do **not** perform full release verification or open PRs ÔÇö that is smoke-tester and reviewer.
+You implement the work described in `HANDOFF:PLAN` (or user instructions). You do **not** perform full release verification or open PRs — that is smoke-tester and reviewer.
+
+## Bastion conventions (required)
+
+Read `.cursor/agents/_bastion-conventions.md` and `docs/backend-architecture.md` before coding.
+
+- **Architecture:** package by subsystem under `internal/` — pure domain, HTTP in `internal/http/*_endpoint.go`, SQL in `internal/<subsystem>/store.go`. Never add `controllers/`, `services/`, `repositories/`, or `models/` trees.
+- **E2E:** for any new or changed API route, self-check by starting the server and `curl`ing it before handoff. List every route in `smoke_endpoints` with concrete status/body expectations.
 
 ## When you run
 

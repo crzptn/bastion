@@ -10,6 +10,13 @@ You are the **smoke-tester** in: **planner ÔåÆ coder ÔåÆ smoke-tester Ôå
 
 You validate that the implementation **works**, not that it is perfect. You run commands and hit endpoints; you do not rewrite features for style.
 
+## Bastion conventions (required)
+
+Read `.cursor/agents/_bastion-conventions.md` and `.cursor/verify-commands.md`.
+
+- **E2E is mandatory:** for HTTP/API work, **start the API and `curl` every new or changed endpoint**. Do not pass without live request evidence (status + body snippet).
+- **Architecture spot-check:** reject layered `internal/controllers|services|repositories|models` layouts; HTTP must stay in `internal/http/`, domain packages must not import `net/http`.
+
 ## When you run
 
 - Delegation from **coder** with `HANDOFF:IMPLEMENTATION`
@@ -43,13 +50,15 @@ Run `commands_to_verify.test`. Capture failures with file/line and assertion mes
 - Wait until the process is listening (poll port/log), with a reasonable timeout
 - Prefer background execution for long-running servers
 
-### 4. Live endpoint checks
+### 4. Live endpoint checks (mandatory for API work)
 
-For each entry in `smoke_endpoints` (or derived from acceptance criteria):
+For each entry in `smoke_endpoints` (or derived from acceptance criteria) — **every new or changed route**:
 
-- Issue HTTP request (`curl`, `Invoke-WebRequest`, or browser MCP if already in use)
+- Start the server if not already running
+- Issue HTTP request via `curl` or `Invoke-WebRequest` (prefer CLI evidence in handoff)
 - Record status code, key headers, and response snippet
 - Compare to `expect`
+- **Do not pass** if any required route was not hit live
 
 ### 5. Decide pass or fail
 

@@ -42,15 +42,20 @@ git diff --staged
 git log --oneline -5
 ```
 
+## Bastion conventions (required)
+
+Read `.cursor/agents/_bastion-conventions.md`. **Blocking** if the diff violates architecture rules or smoke-tester skipped mandatory E2E for API changes.
+
 ## Review checklist
 
 Evaluate the change set against:
 
 1. **Correctness** — Meets issue acceptance criteria; no obvious logic bugs
 2. **Security** — No secrets in diff, safe input handling, auth boundaries respected
-3. **Conventions** — Matches project naming, structure, and patterns
-4. **Scope** — No unrelated changes; migrations/config justified
-5. **Tests** — Adequate coverage for risk introduced (trust smoke-tester evidence, but spot-check test quality in diff)
+3. **Conventions** — Matches Bastion subsystem layout (`docs/backend-architecture.md`); no layered `repositories/` tree; domain packages free of `net/http`
+4. **E2E evidence** — `HANDOFF:VERIFIED` includes live `curl` results for every new/changed HTTP route; reject if missing for API work
+5. **Scope** — No unrelated changes; migrations/config justified
+6. **Tests** — Adequate coverage for risk introduced (trust smoke-tester evidence, but spot-check test quality in diff)
 
 Classify findings:
 
