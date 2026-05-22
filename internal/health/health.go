@@ -1,14 +1,15 @@
 package health
 
-// Status represents subsystem health.
-type Status string
+// Version is the API version reported by the health subsystem.
+var Version = "dev"
 
-const (
-	// StatusUp indicates the subsystem is healthy.
-	StatusUp Status = "up"
-)
+// Result holds domain health state (no HTTP or serialization tags).
+type Result struct {
+	OK      bool
+	Version string
+}
 
-// Check returns the current health status. HTTP exposure is added in issue #2.
-func Check() Status {
-	return StatusUp
+// Status returns the current health result.
+func Status() Result {
+	return Result{OK: true, Version: Version}
 }

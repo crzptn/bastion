@@ -37,7 +37,13 @@ docker compose up --build
 - **api** — Go API on [http://localhost:8080](http://localhost:8080) (port configurable via `API_PORT`)
 - **db** — PostgreSQL 16 with a health check
 
-Both services should reach a healthy state. HTTP routes (e.g. `/health`) arrive in [issue #2](https://github.com/JoakimCarlsson/bastion/issues/2); the React SPA scaffold is [issue #3](https://github.com/JoakimCarlsson/bastion/issues/3).
+Both services should reach a healthy state. Verify the API with:
+
+```bash
+curl -s http://localhost:8080/health
+```
+
+Expected JSON: `{"status":"ok","version":"dev"}` (version follows `API_VERSION` or `VERSION` when set). The React SPA scaffold is [issue #3](https://github.com/JoakimCarlsson/bastion/issues/3).
 
 ## Local build
 

@@ -35,7 +35,16 @@ func main() {
 		log.Printf("store: ping: %v", err)
 	}
 
-	handler := bhttp.NewHandler(pool)
+	corsOrigin := os.Getenv("CORS_ORIGIN")
+	version := os.Getenv("API_VERSION")
+	if version == "" {
+		version = os.Getenv("VERSION")
+	}
+
+	handler := bhttp.NewHandler(pool, bhttp.Config{
+		CORSOrigin: corsOrigin,
+		Version:    version,
+	})
 
 	srv := &http.Server{
 		Addr:    addr,

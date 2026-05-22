@@ -19,7 +19,7 @@ alwaysApply: true
 | planner | `/planner` | Pick issue, `gh issue develop` → linked `task/<N>-<slug>` branch, plan (no source edits) |
 | coder | `/coder` | Implement from `HANDOFF:PLAN` or `HANDOFF:FIX` |
 | smoke-tester | `/smoke-tester` | Build, test, HTTP smoke checks |
-| reviewer | `/reviewer` | Readonly review; opens PR on approval |
+| reviewer | `/reviewer` | Final review; **blocking issues → `HANDOFF:FIX` → coder**; on approval **commits, pushes, opens PR** |
 
 **Delivery pipeline:** `/planner` → `/coder` → `/smoke-tester` → `/reviewer`
 
@@ -30,7 +30,7 @@ alwaysApply: true
 | `HANDOFF:PLAN` | `coder` |
 | `HANDOFF:IMPLEMENTATION` | `smoke-tester` |
 | `HANDOFF:VERIFIED` | `reviewer` |
-| `HANDOFF:FIX` | `coder` |
+| `HANDOFF:FIX` | `coder` (from smoke-tester **or reviewer**) |
 
 **issue-creator** is standalone — no auto-chain after it.
 
@@ -53,4 +53,7 @@ Before smoke-testing, read `.cursor/verify-commands.md`. Update that file when t
 
 ## Commits
 
-Never add AI/Cursor `Co-authored-by` trailers. Commit only when the user asks.
+Never add AI/Cursor `Co-authored-by` trailers.
+
+- **Pipeline delivery:** the **reviewer** always commits (if needed), pushes, and opens the PR after approval — do not leave that to the user.
+- **Outside the pipeline:** commit only when the user explicitly asks.

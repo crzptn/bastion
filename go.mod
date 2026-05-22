@@ -4,6 +4,7 @@ go 1.25
 
 require (
 	github.com/jackc/pgx/v5 v5.7.4
+	github.com/joakimcarlsson/minmux/cors v0.0.0-00010101000000-000000000000
 	github.com/joakimcarlsson/minmux/router v0.0.0-00010101000000-000000000000
 )
 
@@ -15,5 +16,7 @@ require (
 	golang.org/x/sync v0.10.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 )
+
+replace github.com/joakimcarlsson/minmux/cors => ./deps/minmux/cors
 
 replace github.com/joakimcarlsson/minmux/router => ./deps/minmux/router
