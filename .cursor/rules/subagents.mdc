@@ -1,0 +1,47 @@
+---
+description: How to use bastion subagents, HANDOFF blocks, and gh CLI in Agent mode
+alwaysApply: true
+---
+
+# Subagents and workflow
+
+## Tools
+
+- **GitHub**: `gh` only (issues, labels, milestones, PRs) — not the web UI for bulk work
+- **Git**: local repo operations only
+- **PowerShell**: use `--body-file` for issue/PR bodies; no bash heredocs
+
+## Agents (invoke explicitly)
+
+| Agent | Slash | Role |
+|-------|-------|------|
+| issue-creator | `/issue-creator` | Issues, labels, milestones — **standalone**, stops when done |
+| planner | `/planner` | Pick issue, create `task/<N>-<slug>` branch, plan (no source edits) |
+| coder | `/coder` | Implement from `HANDOFF:PLAN` or `HANDOFF:FIX` |
+| smoke-tester | `/smoke-tester` | Build, test, HTTP smoke checks |
+| reviewer | `/reviewer` | Readonly review; opens PR on approval |
+
+**Delivery pipeline** (manual steps): `/planner` → `/coder` → `/smoke-tester` → `/reviewer`
+
+Do not auto-chain agents unless the user asks. After each step, **paste the full `HANDOFF` block** into the next agent's prompt.
+
+## HANDOFF blocks
+
+Copy unchanged between agents:
+
+- `HANDOFF:PLAN` — planner → coder
+- `HANDOFF:IMPLEMENTATION` — coder → smoke-tester
+- `HANDOFF:VERIFIED` — smoke-tester → reviewer
+- `HANDOFF:FIX` — smoke-tester or reviewer → coder
+
+## Small tasks
+
+For typos or one-file fixes, skip planner and smoke-tester; use `/coder` then `/reviewer` if needed.
+
+## Verification commands
+
+Before smoke-testing, read `.cursor/verify-commands.md`. Update that file when the project stack is chosen.
+
+## Commits
+
+Never add AI/Cursor `Co-authored-by` trailers. Commit only when the user asks.
