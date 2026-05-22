@@ -81,3 +81,26 @@ internal/
 4. Wire dependencies in `http.NewHandler` — not in `main.go` beyond construction.
 
 See [issue #5](https://github.com/JoakimCarlsson/bastion/issues/5) for Makefile fmt/lint targets and agent docs.
+
+## Reference: health endpoint
+
+`GET /health` is the template for every subsystem HTTP surface.
+
+| File | Responsibility |
+|------|----------------|
+| `internal/health/health.go` | Domain logic — `Status()` returns `Result{OK, Version}`; no HTTP imports |
+| `internal/http/health_endpoint.go` | HTTP adapter — maps domain result to JSON DTO, registers `r.Get("/health", ...)` |
+| `internal/http/handler.go` | Router assembly — global middleware (recover, logging, CORS), calls `registerHealth` |
+| `cmd/api/main.go` | Wiring only — env config, `store.Pool`, `http.NewHandler(pool, cfg)` |
+
+Request flow:
+
+```
+GET /health
+  → router middleware (Recover → logging → CORS)
+  → healthHandler (internal/http)
+  → health.Status() (internal/health)
+  → JSON {"status":"ok","version":"..."}
+```
+
+When adding a subsystem, mirror this split: domain package, `*_endpoint.go` registration, wire in `NewHandler`.
