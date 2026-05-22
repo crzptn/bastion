@@ -44,6 +44,7 @@ func main() {
 	handler := bhttp.NewHandler(pool, bhttp.Config{
 		CORSOrigin: corsOrigin,
 		Version:    version,
+		WebDist:    os.Getenv("WEB_DIST"),
 	})
 
 	srv := &http.Server{

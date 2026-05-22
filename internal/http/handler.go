@@ -3,6 +3,8 @@ package http
 import (
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/joakimcarlsson/minmux/cors"
@@ -16,12 +18,10 @@ import (
 type Config struct {
 	CORSOrigin string
 	Version    string
+	WebDist    string
 }
 
 // NewHandler returns the API HTTP handler wired with minmux.
-//
-// SPA static assets from web/dist are mounted in issue #3 via router.SPA.
-// Do not call router.SPA() until web/dist/index.html exists.
 func NewHandler(_ *store.Pool, cfg Config) http.Handler {
 	if cfg.Version != "" {
 		health.Version = cfg.Version
@@ -40,8 +40,27 @@ func NewHandler(_ *store.Pool, cfg Config) http.Handler {
 	}
 
 	registerHealth(r)
+	mountSPA(r, cfg.WebDist)
 
 	return r
+}
+
+func mountSPA(r *router.Router, webDist string) {
+	if webDist == "" {
+		webDist = "web/dist"
+	}
+
+	indexPath := filepath.Join(webDist, "index.html")
+	if _, err := os.Stat(indexPath); err != nil {
+		if !os.IsNotExist(err) {
+			log.Printf("spa: stat %s: %v", indexPath, err)
+		}
+		return
+	}
+
+	if err := r.SPA(os.DirFS(webDist)); err != nil {
+		log.Printf("spa: mount %s: %v", webDist, err)
+	}
 }
 
 func requestLogging() func(http.Handler) http.Handler {

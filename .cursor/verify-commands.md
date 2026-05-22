@@ -82,3 +82,25 @@ make help
 ```
 
 **Expected:** prints that fmt/lint/dev targets arrive in issue #5.
+
+## Frontend (web/)
+
+From `web/` after `bun install`:
+
+```bash
+cd web
+bun run build
+bun run lint
+bun run typecheck
+```
+
+**Expected:** build writes `dist/index.html` and assets; lint and typecheck exit 0.
+
+With API running and `web/dist` built:
+
+```bash
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/
+curl -s http://localhost:8080/health
+```
+
+**Expected:** `/` returns 200 (HTML); `/health` returns JSON `{"status":"ok",...}`.
