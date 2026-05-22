@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:16
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bastion}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bastion}
+      POSTGRES_DB: ${POSTGRES_DB:-bastion}
+    volumes:
+      - bastion_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bastion} -d ${POSTGRES_DB:-bastion}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://bastion:bastion@db:5432/bastion?sslmode=disable}
+      API_ADDR: ${API_ADDR:-:8080}
+    ports:
+      - "${API_PORT:-8080}:8080"
+
+volumes:
+  bastion_pgdata:
