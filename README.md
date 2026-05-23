@@ -1,172 +1,122 @@
 # bastion
 
-Tower-defense game backend and SPA monorepo.
+A vibe-coded tower-defense project. The code in here was not lovingly hand-crafted — it was orchestrated through a small army of AI agents that plan, code, smoke test, and review each other in a loop. I sit at the wheel; the agents do the typing.
 
-## Prerequisites
+This README is mostly about **how I work on this repo**, not about the game.
 
-- [Go](https://go.dev/dl/) 1.25+
-- [Bun](https://bun.sh/) 1.1+ (frontend tooling)
-- [Docker](https://www.docker.com/) and Docker Compose
-- [Git](https://git-scm.com/)
+## The agent pipeline
 
-## Clone and submodules
+Four agents in a chain, plus a creator for backlog grooming:
+
+**Planner → Coder → SmokeTest → Reviewer**
+
+There are two parallel sets of agent definitions — same pipeline, different homes:
+
+- **VS Code (Copilot Chat)** reads [`.github/agents/*.agent.md`](./.github/agents/)
+- **Cursor** reads [`.cursor/agents/*.md`](./.cursor/agents/) plus rules in [`.cursor/rules/*.mdc`](./.cursor/rules/)
+
+Keeping them in sync is a manual chore, but the workflow they describe is identical.
+
+```mermaid
+flowchart TD
+    User([me]) -->|"feature idea / milestone"| Creator[IssueCreator]
+    Creator -->|"gh issue create"| GH[(GitHub issues)]
+
+    User -.->|"issues: 42"| Planner[IssuePlanner]
+    GH --> Planner
+    Planner -->|"plan + branch"| Approve{plan ok?}
+    Approve -- no --> Planner
+    Approve -- yes --> Coder[IssueCoder]
+
+    Coder -->|"commit + PR"| Smoke[IssueSmokeTest]
+    Smoke -- tests fail --> Coder
+    Smoke -- tests pass --> Reviewer[IssueReviewer]
+
+    Reviewer -- issues found --> Coder
+    Reviewer -- looks good --> Done([merge])
+```
+
+The handoffs are wired in the agent frontmatter (`handoffs:` block), so once a stage finishes the next one is auto-invoked. Reviewer and Planner are read-only — only the Coder writes files.
+
+## Example flow — VS Code (Copilot Chat)
+
+This is my daily driver. Copilot Chat picks up the agents from `.github/agents/*.agent.md` automatically.
+
+1. **Groom the backlog** — `@IssueCreator break down the lobby-matchmaking feature into issues`. It writes labels, milestones, and issues with binary acceptance criteria via `gh`.
+2. **Plan** — `@IssuePlanner issues: 42`. It reads the issue, greps the repo, asks me clarifying questions, writes a plan to `/memories/session/plan.md`, and creates the branch. I either approve or push back.
+3. **Auto-handoff to Coder** — implements the plan, runs `make fmt` / `make lint` / `bun run lint`, commits, opens a PR.
+4. **Auto-handoff to SmokeTest** — builds, runs unit tests, boots the server, curls the new endpoints, reports.
+5. **Auto-handoff to Reviewer** — reads `gh pr diff`, files a written report. If anything is off, it bounces back to Coder; otherwise I merge.
+
+Models used (set per-agent in the frontmatter):
+- Planner: **Claude Opus 4.6**
+- Coder / SmokeTest / Reviewer: **Claude Sonnet 4.6**
+
+## Example flow — Cursor
+
+Cursor has its own agent system under [`.cursor/agents/`](./.cursor/agents/) (`planner.md`, `coder.md`, `smoke-tester.md`, `reviewer.md`, `issue-creator.md`) with shared conventions in `_bastion-conventions.md` and rules in `.cursor/rules/subagents.mdc`. The pipeline mirrors the VS Code one one-for-one:
+
+```
+@planner issues: 42   →   (approve)   →   @coder   →   @smoke-tester   →   @reviewer
+```
+
+**A note on models:** you should be running better models than I did here — ideally **Opus 4.7** (or whatever the current top-tier reasoner is) on the planner, and Sonnet 4.6 on the rest. Planning is where bad calls compound, so spend the tokens there. I set this repo up while stuck in the Cursor slow pool, so the actual outputs reflect that, not what the pipeline can do when properly fed.
+
+## The inner loop (what each cycle looks like)
+
+```mermaid
+sequenceDiagram
+    participant Me
+    participant P as Planner (Opus)
+    participant C as Coder (Sonnet)
+    participant S as SmokeTest
+    participant R as Reviewer
+
+    Me->>P: issues: 42
+    P->>P: research repo, draft plan
+    P->>Me: present plan + questions
+    Me->>P: approve
+    P->>C: handoff (branch ready)
+    C->>C: edit, fmt, lint, commit, gh pr create
+    C->>S: handoff (PR open)
+    S->>S: build, test, curl endpoints
+    alt tests fail
+        S->>C: failure report
+        C->>S: re-implement
+    else tests pass
+        S->>R: handoff
+        R->>R: read diff + checks
+        alt issues found
+            R->>C: review report
+            C->>S: re-loop
+        else clean
+            R->>Me: ✅ ready to merge
+        end
+    end
+```
+
+## Repo layout (the short version)
+
+- `cmd/api`, `cmd/migrate` — Go entry points
+- `internal/<subsystem>/` — pure domain logic, no `net/http`
+- `internal/http/*_endpoint.go` — HTTP layer (minmux)
+- `migrations/` — golang-migrate SQL
+- `web/` — Bun + React + Vite + Tailwind 4 SPA
+- `.github/agents/` — the agents that actually wrote most of this
+
+Architecture rules and the dev workflow agents must follow live in [AGENTS.md](AGENTS.md) and [docs/backend-architecture.md](docs/backend-architecture.md).
+
+## Running it
 
 ```bash
 git clone https://github.com/JoakimCarlsson/bastion.git
 cd bastion
 git submodule update --init --recursive
-```
-
-The [minmux](https://github.com/JoakimCarlsson/minmux) router is vendored at `deps/minmux` as a git submodule. Bastion's `go.mod` uses `replace` directives so `github.com/joakimcarlsson/minmux/*` modules resolve to `./deps/minmux/<module>`.
-
-## Configuration
-
-Copy the example environment file and adjust if needed:
-
-```bash
 cp .env.example .env
-```
-
-Variables are documented in `.env.example`. Inside Docker Compose, the API uses hostname `db` for PostgreSQL; for a local `go run` against a compose database, point `DATABASE_URL` at `localhost`.
-
-## Docker Compose (API + PostgreSQL)
-
-```bash
 docker compose up --build
 ```
 
-- **api** — Go API on [http://localhost:8080](http://localhost:8080) (port configurable via `API_PORT`)
-- **db** — PostgreSQL 16 with a health check
-
-Both services should reach a healthy state. Verify the API with:
-
-```bash
-curl -s http://localhost:8080/health
-```
-
-Expected JSON: `{"status":"ok","version":"dev"}` (version follows `API_VERSION` or `VERSION` when set). With a built frontend (`web/dist`), the same origin also serves the React SPA at `/`.
-
-Readiness (database connectivity):
-
-```bash
-curl -s http://localhost:8080/ready
-```
-
-Expected JSON when the database is reachable: `{"status":"ready"}` (HTTP 200). Returns HTTP 503 with `{"status":"not_ready"}` when `store.Ping` fails.
-
-On startup the API applies pending migrations automatically when `DATABASE_URL` is set, then verifies connectivity before listening.
-
-## Database migrations
-
-Migrations are managed with [go-migrate](https://github.com/golang-migrate/migrate) (`github.com/golang-migrate/migrate/v4`). SQL files live in `migrations/` using the sequential naming convention (`000001_init.up.sql` / `000001_init.down.sql`).
-
-| Target | Purpose |
-|--------|---------|
-| `make migrate-up` | Apply all pending migrations |
-| `make migrate-down` | Roll back one migration (**dev only** — can drop schema objects) |
-| `make migrate-version` | Print current version and dirty flag |
-| `make migrate-create NAME=...` | Create a new migration pair via the official migrate CLI |
-
-All Makefile migration targets require `DATABASE_URL` in the environment.
-
-**Hostname:** Inside Docker Compose the API connects to PostgreSQL at host `db`. For local `go run` or `make migrate-*` against a compose database, set `DATABASE_URL` to use `localhost` instead (see `.env.example`).
-
-**PowerShell (export env from `.env`):**
-
-```powershell
-Get-Content .env | ForEach-Object {
-  if ($_ -match '^\s*([^#][^=]+)=(.*)$') { Set-Item -Path "Env:$($matches[1].Trim())" -Value $matches[2].Trim() }
-}
-```
-
-**Bash:**
-
-```bash
-set -a; source .env; set +a
-```
-
-**Integration tests:** `go test -tags=integration ./internal/store/...` runs migrate up/down when `DATABASE_URL` points at a live database; skipped otherwise.
-
-**Container path:** The Docker image copies migrations to `/migrations` and sets `MIGRATIONS_PATH=/migrations`.
-
-## Frontend (Bun + React + Vite + Tailwind 4)
-
-The SPA lives under `web/`. Linting uses **ESLint**; formatting uses **Prettier** (see scripts below).
-
-```bash
-cd web
-bun install
-```
-
-### Development
-
-Run the Go API (see [Local build](#local-build)), then start Vite on port 5173:
-
-```bash
-cd web
-bun run dev
-```
-
-Open [http://localhost:5173](http://localhost:5173). Vite proxies `GET /health` to the API (`http://localhost:8080` by default). Optionally set `VITE_API_URL=http://localhost:8080` in `web/.env` to fetch the API directly instead of via the proxy.
-
-Set `CORS_ORIGIN=http://localhost:5173` in the root `.env` when using the dev server (already in `.env.example`).
-
-### Production build
-
-```bash
-cd web
-bun run build
-```
-
-Produces `web/dist/`. When `web/dist/index.html` exists, `go run ./cmd/api` serves the SPA from `/` (override path with `WEB_DIST`).
-
-| Script | Purpose |
-|--------|---------|
-| `bun run dev` | Vite dev server with API proxy |
-| `bun run build` | Typecheck + production bundle to `dist/` |
-| `bun run lint` | ESLint |
-| `bun run format` | Prettier write |
-| `bun run format:check` | Prettier check (CI-friendly) |
-| `bun run typecheck` | TypeScript project references |
-
-### API URL modes
-
-- **Production / same-origin:** leave `VITE_API_URL` unset; the app fetches `/health` on the API host.
-- **Vite dev:** rely on the proxy, or set `VITE_API_URL` to the API base (e.g. `http://localhost:8080`).
-
-## Local build
-
-After submodule init:
-
-```bash
-go build ./cmd/api
-go build ./cmd/migrate
-```
-
-## Architecture and agents
-
-Backend packaging rules (subsystem-oriented layout, minmux, domain purity) are documented in [docs/backend-architecture.md](docs/backend-architecture.md).
-
-Contributors and Cursor agents should read **[AGENTS.md](AGENTS.md)** first — it defines mandatory E2E verification, architecture constraints, and dev workflow.
-
-## Makefile
-
-Run `make help` for all targets.
-
-Run **`make install` once** before `make lint` (installs golangci-lint v2, goimports, and golines).
-
-| Target | Purpose |
-|--------|---------|
-| `make install` | Install Go lint/format tools (once) |
-| `make workspace` | Copy `go.work.example` → `go.work` if missing |
-| `make fmt` | Format Go code under `cmd/` and `internal/` |
-| `make lint` | `go vet ./...` + golangci-lint |
-| `make web-install` | `bun install` in `web/` |
-| `make web-fmt` | Prettier write in `web/` |
-| `make web-lint` | ESLint in `web/` |
-| `make check` | `lint` + `web-lint` + `go test -short ./...` |
-
-Migration targets (`migrate-up`, `migrate-down`, `migrate-version`, `migrate-create`) require `DATABASE_URL` — see [Database migrations](#database-migrations) above.
+API on `:8080`, SPA dev server via `cd web && bun run dev` on `:5173`. `make help` lists every other target.
 
 ## License
 
