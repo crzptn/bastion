@@ -10,3 +10,4 @@ When an entry below appears 2+ times, promote it to `AGENTS.md` (or the relevant
 
 <!-- Format: `- YYYY-MM-DD #<PR>: <one short sentence>` -->
 <!-- Reviewer appends here. Most recent at the bottom. -->
+- 2026-05-23 #35: Pure sim modules (no React imports) can be verified architecture-clean at review time simply by checking the import list at the top of the file — no tooling needed.
