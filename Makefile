@@ -1,4 +1,6 @@
-.PHONY: help install workspace fmt lint web-install web-fmt web-lint check dev dev-api dev-web migrate-up migrate-down migrate-version migrate-create
+.PHONY: help install workspace fmt lint web-install web-fmt web-lint check dev dev-api dev-web kill-ports migrate-up migrate-down migrate-version migrate-create
+
+DEV_PORTS ?= 5173 8080
 
 MIGRATE_VERSION ?= v4.18.2
 
@@ -13,7 +15,8 @@ help:
 	@echo "Bastion Makefile targets:"
 	@echo ""
 	@echo "  install        Install golangci-lint v2, goimports, golines, and air (run once)"
-	@echo "  dev            Run backend (air hot reload) and web (vite) together"
+	@echo "  dev            Free dev ports, then run backend (air) and web (vite) together"
+	@echo "  kill-ports     Kill any processes listening on DEV_PORTS ($(DEV_PORTS))"
 	@echo "  dev-api        Run backend with air hot reload"
 	@echo "  dev-web        Run web dev server (vite)"
 	@echo "  workspace      Copy go.work.example to go.work if missing"
@@ -74,7 +77,15 @@ dev-api: workspace
 dev-web:
 	cd web && bun run dev
 
-dev:
+ifeq ($(OS),Windows_NT)
+kill-ports:
+	@powershell -NoProfile -ExecutionPolicy Bypass -File scripts/kill-ports.ps1 $(DEV_PORTS)
+else
+kill-ports:
+	@for p in $(DEV_PORTS); do pids=$$(lsof -ti tcp:$$p 2>/dev/null); if [ -n "$$pids" ]; then echo "Killing $$pids on port $$p"; kill -9 $$pids 2>/dev/null || true; fi; done
+endif
+
+dev: kill-ports
 	@$(MAKE) -j2 dev-api dev-web
 
 migrate-up:
