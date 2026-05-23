@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { STARTER_MAP } from './maps/starter';
-import { canPlaceTower, cellAt, distanceAlongPath } from './logic';
-import type { GamePhase, TowerInstance } from './types';
+import { canPlaceTower, cellAt, distanceAlongPath, placeTower } from './logic';
+import { TOWER_DEFS, createInitialRunState } from './constants';
+import type { GamePhase, RunState, TowerInstance } from './types';
 
 describe('cellAt', () => {
   const { grid } = STARTER_MAP;
@@ -71,6 +72,75 @@ describe('distanceAlongPath', () => {
 
   it('returns total path length for an off-path point', () => {
     expect(distanceAlongPath(path, 15, 0)).toBeCloseTo(35);
+  });
+});
+
+describe('placeTower', () => {
+  const { grid } = STARTER_MAP;
+  const buildableCell = grid.cells.find((c) => c.buildable)!;
+  const nonBuildableCell = grid.cells.find((c) => !c.buildable)!;
+  const archerDef = TOWER_DEFS.archer;
+  const cannonDef = TOWER_DEFS.cannon;
+
+  it('places a tower and deducts gold on success', () => {
+    const state: RunState = createInitialRunState();
+    const { state: next, placed } = placeTower(state, archerDef, buildableCell.x, buildableCell.y, grid);
+    expect(placed).toBe(true);
+    expect(next.gold).toBe(state.gold - archerDef.cost);
+    expect(next.towers).toHaveLength(1);
+    expect(next.towers[0]).toEqual({
+      id: `${archerDef.id}-${buildableCell.x}-${buildableCell.y}`,
+      defId: archerDef.id,
+      x: buildableCell.x,
+      y: buildableCell.y,
+    });
+  });
+
+  it('does not mutate the original state on success', () => {
+    const state: RunState = createInitialRunState();
+    const { state: next } = placeTower(state, archerDef, buildableCell.x, buildableCell.y, grid);
+    expect(state.gold).toBe(100);
+    expect(state.towers).toHaveLength(0);
+    expect(next).not.toBe(state);
+  });
+
+  it('rejects when gold is insufficient', () => {
+    const state: RunState = { ...createInitialRunState(), gold: cannonDef.cost - 1 };
+    const { state: next, placed } = placeTower(state, cannonDef, buildableCell.x, buildableCell.y, grid);
+    expect(placed).toBe(false);
+    expect(next.gold).toBe(state.gold);
+    expect(next.towers).toEqual(state.towers);
+    expect(next).toBe(state);
+  });
+
+  it('rejects on a non-buildable cell', () => {
+    const state: RunState = createInitialRunState();
+    const { state: next, placed } = placeTower(state, archerDef, nonBuildableCell.x, nonBuildableCell.y, grid);
+    expect(placed).toBe(false);
+    expect(next.gold).toBe(state.gold);
+    expect(next.towers).toEqual(state.towers);
+    expect(next).toBe(state);
+  });
+
+  it('rejects when the cell is already occupied', () => {
+    const state: RunState = {
+      ...createInitialRunState(),
+      towers: [{ id: 'existing', defId: 'cannon', x: buildableCell.x, y: buildableCell.y }],
+    };
+    const { state: next, placed } = placeTower(state, archerDef, buildableCell.x, buildableCell.y, grid);
+    expect(placed).toBe(false);
+    expect(next.gold).toBe(state.gold);
+    expect(next.towers).toEqual(state.towers);
+    expect(next).toBe(state);
+  });
+
+  it('rejects when phase is not prep', () => {
+    const state: RunState = { ...createInitialRunState(), phase: 'combat' };
+    const { state: next, placed } = placeTower(state, archerDef, buildableCell.x, buildableCell.y, grid);
+    expect(placed).toBe(false);
+    expect(next.gold).toBe(state.gold);
+    expect(next.towers).toEqual(state.towers);
+    expect(next).toBe(state);
   });
 });
 

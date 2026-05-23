@@ -13,7 +13,7 @@ export type {
 
 export { createInitialRunState, ENEMY_DEFS, TOWER_DEFS } from './constants';
 
-export { canPlaceTower, cellAt, distanceAlongPath } from './logic';
+export { canPlaceTower, cellAt, distanceAlongPath, placeTower } from './logic';
 
 export { STARTER_MAP } from './maps/starter';
 

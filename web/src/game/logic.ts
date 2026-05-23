@@ -1,4 +1,4 @@
-import type { Cell, Grid, Path, TowerInstance } from './types';
+import type { Cell, Grid, Path, RunState, TowerDef, TowerInstance } from './types';
 
 export function cellAt(grid: Grid, x: number, y: number): Cell | undefined {
   if (x < 0 || x >= grid.cols || y < 0 || y >= grid.rows) {
@@ -16,6 +16,34 @@ export function canPlaceTower(
   const cell = cellAt(grid, x, y);
   if (!cell || !cell.buildable) return false;
   return !towers.some((t) => t.x === x && t.y === y);
+}
+
+export function placeTower(
+  state: RunState,
+  def: TowerDef,
+  x: number,
+  y: number,
+  grid: Grid,
+): { state: RunState; placed: boolean } {
+  if (state.phase !== 'prep') return { state, placed: false };
+  if (!canPlaceTower(grid, state.towers, x, y)) return { state, placed: false };
+  if (state.gold < def.cost) return { state, placed: false };
+
+  const tower: TowerInstance = {
+    id: `${def.id}-${x}-${y}`,
+    defId: def.id,
+    x,
+    y,
+  };
+
+  return {
+    state: {
+      ...state,
+      gold: state.gold - def.cost,
+      towers: [...state.towers, tower],
+    },
+    placed: true,
+  };
 }
 
 export function distanceAlongPath(path: Path, x: number, y: number): number {
