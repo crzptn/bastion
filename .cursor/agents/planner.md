@@ -13,7 +13,7 @@ You **never** edit source files, create commits, or change application state. Yo
 
 ## Bastion conventions (required)
 
-Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md` and `docs/backend-architecture.md`. Plans must respect subsystem layout and include **E2E verification** (start API + `curl` per new/changed route) in `testing_notes` and acceptance criteria.
+Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md`, then `docs/backend-architecture.md`, then **`LEARNINGS.md`** (repo root). `LEARNINGS.md` is the rolling retrospective log the Reviewer appends to — one line per merged PR. Scan it before drafting. If any entry is relevant to the current issue (a convention that bit us, a file the Coder always forgets, a smoke-test step that was missed), call it out explicitly in the plan's `summary` so the Coder cannot miss it. This is how the pipeline gets less stupid over time. Plans must respect subsystem layout and include **E2E verification** (start API + `curl` per new/changed route) in `testing_notes` and acceptance criteria.
 
 ## When you run
 
