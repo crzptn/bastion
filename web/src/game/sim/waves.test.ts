@@ -248,6 +248,48 @@ describe('tickWaves – wave clear transition', () => {
   });
 });
 
+// ------------------------------------------------------------------ victory transition
+describe('tickWaves – victory transition', () => {
+  it('transitions to victory (not prep) when clearing the final wave', () => {
+    const state: RunState = {
+      ...createInitialRunState(),
+      phase: 'combat',
+      waveIndex: WAVES.length - 1,
+      enemies: [],
+      waveProgress: { spawnQueue: [], timeUntilNextSpawn: 0 },
+    };
+    const next = tickWaves(state, 0.016);
+    expect(next.phase).toBe('victory');
+    expect(next.waveIndex).toBe(WAVES.length);
+    expect(next.waveProgress).toBeNull();
+  });
+
+  it('transitions to prep (not victory) when clearing a non-final wave', () => {
+    const state: RunState = {
+      ...createInitialRunState(),
+      phase: 'combat',
+      waveIndex: 0,
+      enemies: [],
+      waveProgress: { spawnQueue: [], timeUntilNextSpawn: 0 },
+    };
+    const next = tickWaves(state, 0.016);
+    expect(next.phase).toBe('prep');
+    expect(next.waveIndex).toBe(1);
+  });
+
+  it('tickWaves is a same-reference no-op when phase is victory', () => {
+    const state: RunState = {
+      ...createInitialRunState(),
+      phase: 'victory',
+      waveIndex: WAVES.length,
+      enemies: [],
+      waveProgress: null,
+    };
+    const next = tickWaves(state, 0.016);
+    expect(next).toBe(state);
+  });
+});
+
 // ------------------------------------------------------------------ gameover
 describe('gameover – sim short-circuit', () => {
   it('tickWaves is a no-op when phase is gameover', () => {

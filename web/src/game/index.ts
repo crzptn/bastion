@@ -27,3 +27,6 @@ export { pathLength, positionAtDistance } from './sim/path';
 
 export { WAVES, startWave, tickWaves } from './sim/waves';
 
+export { useGameSession } from './useGameSession';
+export type { GameSession } from './useGameSession';
+

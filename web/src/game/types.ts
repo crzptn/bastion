@@ -1,4 +1,4 @@
-export type GamePhase = 'prep' | 'combat' | 'gameover';
+export type GamePhase = 'prep' | 'combat' | 'gameover' | 'victory';
 
 export type Cell = {
   x: number;

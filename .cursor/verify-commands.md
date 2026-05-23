@@ -150,9 +150,10 @@ cd web
 bun run build
 bun run lint
 bun run typecheck
+bun run test
 ```
 
-**Expected:** build writes `dist/index.html` and assets; lint and typecheck exit 0.
+**Expected:** build writes `dist/index.html` and assets; lint, typecheck, and test all exit 0. Test output should show 4 test files, 83+ tests passed.
 
 With API running and `web/dist` built:
 
@@ -164,3 +165,24 @@ curl -s http://localhost:8080/ready
 ```
 
 **Expected:** `/` returns 200 (HTML); `/health` returns JSON `{"status":"ok",...}`; `/ready` returns HTTP 200 with `{"status":"ready"}` when the database is up.
+
+## Manual play smoke (/play)
+
+Run with `bun run dev` in `web/` (and optionally `go run ./cmd/api` for health status):
+
+1. Open http://localhost:5173/play in a browser.
+2. Confirm HUD shows: Wave 1/3, Gold 100, Base HP 20, Phase prep.
+3. Click **New game** — verify state resets (gold back to 100, waveIndex back to 0, phase back to prep).
+4. Select the **Archer** tower from the tower bar.
+5. Click a buildable cell on the map — confirm a tower appears on the canvas and gold decreases by 25.
+6. Click **Start wave** — button should become disabled; Phase changes to combat; enemies appear and begin moving.
+7. Watch enemies move along the path. When towers fire and kill enemies, gold should increase (10g per goblin kill).
+8. After all enemies die, phase returns to **prep**; wave counter advances to 2/3.
+9. Repeat steps 5–8 for waves 2 and 3.
+10. After clearing wave 3: a **Victory** overlay appears over the canvas showing "You cleared all 3 waves!". Confirm Start wave button is disabled.
+11. Click **Restart** in the overlay — confirm state resets (gold 100, baseHp 20, phase prep, wave 1/3, canvas clears).
+12. Alternative loss path: place no towers (or few), start a wave, let goblins reach the end — Base HP drops. When it hits 0, a **Game Over** overlay appears showing the wave reached and a **Restart** button.
+13. Click **Restart** — state resets cleanly.
+14. Open the **How to play** collapsible at the bottom — confirm it lists controls for placing towers, starting waves, earning gold, and the game-over condition.
+15. From the home page (http://localhost:5173/), confirm a "Start a single-player run →" link navigates to /play.
+16. Verify no console errors throughout.

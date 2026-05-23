@@ -39,7 +39,7 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version-file: web/package.json
+          bun-version: latest
 
       - name: Install
         run: cd web && bun install --frozen-lockfile
