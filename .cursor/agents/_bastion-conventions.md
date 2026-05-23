@@ -1,6 +1,6 @@
 # Bastion conventions (all delivery agents)
 
-Read `docs/backend-architecture.md` and repo-root `AGENTS.md` (when present) before planning or implementing.
+Read repo-root **`AGENTS.md` first**, then `docs/backend-architecture.md`, before planning or implementing.
 
 ## Verification — mandatory E2E
 
