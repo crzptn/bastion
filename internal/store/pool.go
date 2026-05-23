@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Pool wraps a PostgreSQL connection pool. Migrations arrive in issue #4.
+// Pool wraps a PostgreSQL connection pool.
 type Pool struct {
 	pool *pgxpool.Pool
 }
@@ -26,9 +26,9 @@ func New(ctx context.Context, databaseURL string) (*Pool, error) {
 	return &Pool{pool: pool}, nil
 }
 
-// Ping verifies the database is reachable.
+// Ping verifies the database is reachable. Nil pool or no underlying connection succeeds (no-op).
 func (p *Pool) Ping(ctx context.Context) error {
-	if p.pool == nil {
+	if p == nil || p.pool == nil {
 		return nil
 	}
 	return p.pool.Ping(ctx)
@@ -36,7 +36,8 @@ func (p *Pool) Ping(ctx context.Context) error {
 
 // Close releases pool resources.
 func (p *Pool) Close() {
-	if p.pool != nil {
-		p.pool.Close()
+	if p == nil || p.pool == nil {
+		return
 	}
+	p.pool.Close()
 }

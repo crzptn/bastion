@@ -22,7 +22,7 @@ type Config struct {
 }
 
 // NewHandler returns the API HTTP handler wired with minmux.
-func NewHandler(_ *store.Pool, cfg Config) http.Handler {
+func NewHandler(pool *store.Pool, cfg Config) http.Handler {
 	if cfg.Version != "" {
 		health.Version = cfg.Version
 	}
@@ -40,6 +40,7 @@ func NewHandler(_ *store.Pool, cfg Config) http.Handler {
 	}
 
 	registerHealth(r)
+	registerReady(r, pool)
 	mountSPA(r, cfg.WebDist)
 
 	return r

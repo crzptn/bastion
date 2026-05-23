@@ -27,6 +27,7 @@ RUN if [ ! -f deps/minmux/router/go.mod ]; then \
 
 COPY cmd ./cmd
 COPY internal ./internal
+COPY migrations ./migrations
 COPY --from=web-builder /src/web/dist ./web/dist
 
 RUN CGO_ENABLED=0 go build -o /api ./cmd/api
@@ -34,7 +35,10 @@ RUN CGO_ENABLED=0 go build -o /api ./cmd/api
 FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=builder /api /api
+COPY --from=builder /src/migrations /migrations
 COPY --from=web-builder /src/web/dist /web/dist
+
+ENV MIGRATIONS_PATH=/migrations
 
 EXPOSE 8080
 

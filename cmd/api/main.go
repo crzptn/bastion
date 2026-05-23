@@ -25,14 +25,20 @@ func main() {
 
 	ctx := context.Background()
 
-	pool, err := store.New(ctx, os.Getenv("DATABASE_URL"))
+	databaseURL := os.Getenv("DATABASE_URL")
+	pool, err := store.New(ctx, databaseURL)
 	if err != nil {
 		log.Fatalf("store: %v", err)
 	}
 	defer pool.Close()
 
-	if err := pool.Ping(ctx); err != nil {
-		log.Printf("store: ping: %v", err)
+	if databaseURL != "" {
+		if err := store.RunUp(databaseURL); err != nil {
+			log.Fatalf("migrate: %v", err)
+		}
+		if err := pool.Ping(ctx); err != nil {
+			log.Fatalf("store: ping: %v", err)
+		}
 	}
 
 	corsOrigin := os.Getenv("CORS_ORIGIN")
