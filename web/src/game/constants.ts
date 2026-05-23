@@ -37,5 +37,7 @@ export function createInitialRunState(): RunState {
     phase: 'prep',
     towers: [],
     enemies: [],
+    waveProgress: null,
+    nextEnemyId: 0,
   };
 }
