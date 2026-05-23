@@ -54,9 +54,9 @@ export type TowerMeshProps = {
 const CannonMesh: React.FC<TowerMeshProps> = ({ position }) => (
   <group position={position}>
     {/* Base cylinder, centred at y=0 relative to group */}
-    <mesh geometry={cannonBaseGeometry} material={cannonBaseMaterial} position={[0, 0.175, 0]} />
+    <mesh geometry={cannonBaseGeometry} material={cannonBaseMaterial} position={[0, 0.175, 0]} castShadow />
     {/* Turret box on top of base */}
-    <mesh geometry={cannonTurretGeometry} material={cannonTurretMaterial} position={[0, 0.49, 0]} />
+    <mesh geometry={cannonTurretGeometry} material={cannonTurretMaterial} position={[0, 0.49, 0]} castShadow />
   </group>
 );
 
@@ -66,9 +66,9 @@ const CannonMesh: React.FC<TowerMeshProps> = ({ position }) => (
 const ArcherMesh: React.FC<TowerMeshProps> = ({ position }) => (
   <group position={position}>
     {/* Tower body */}
-    <mesh geometry={archerBaseGeometry} material={archerBaseMaterial} position={[0, 0.25, 0]} />
+    <mesh geometry={archerBaseGeometry} material={archerBaseMaterial} position={[0, 0.25, 0]} castShadow />
     {/* Cone roof sitting on top */}
-    <mesh geometry={archerRoofGeometry} material={archerRoofMaterial} position={[0, 0.7, 0]} />
+    <mesh geometry={archerRoofGeometry} material={archerRoofMaterial} position={[0, 0.7, 0]} castShadow />
   </group>
 );
 
@@ -76,7 +76,7 @@ const ArcherMesh: React.FC<TowerMeshProps> = ({ position }) => (
 // Placeholder — magenta box rendered for any unknown defId
 // ---------------------------------------------------------------------------
 export const PLACEHOLDER_TOWER_MESH: React.FC<TowerMeshProps> = ({ position }) => (
-  <mesh geometry={placeholderTowerGeometry} material={placeholderTowerMaterial} position={position} />
+  <mesh geometry={placeholderTowerGeometry} material={placeholderTowerMaterial} position={position} castShadow />
 );
 
 // ---------------------------------------------------------------------------
