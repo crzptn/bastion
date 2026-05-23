@@ -64,6 +64,21 @@ gh pr checks <pr_number>
 
 Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md`. **Blocking** if the diff violates architecture rules or smoke-tester skipped mandatory E2E for API changes.
 
+## Spec-conformance pass (mandatory, before the checklist below)
+
+Open the original issue body:
+
+```bash
+gh issue view <issue_number>
+```
+
+For **every `[ ]` checkbox in the Acceptance criteria section**, cite one of:
+
+- a `file:line` from the diff that satisfies it, **or**
+- `UNMET — <one-line reason nothing in the diff covers it>`
+
+Any `UNMET` row is a **blocking** finding by definition. Spec drift is the #1 cause of bad merges in this pipeline; this pass exists to catch it. Record the table in the `spec_conformance` field of `HANDOFF:APPROVED` / `HANDOFF:FIX`.
+
 ## Review checklist
 
 Evaluate the change set against:
@@ -93,6 +108,11 @@ issue_url: <url>
 
 failure_summary: |
   Code review: <N> blocking, <M> suggestions
+
+spec_conformance:
+  - ac: "<text of checkbox 1>"
+    status: MET | UNMET
+    evidence: path/to/file.go:<line> | "<one-line reason nothing in the diff covers it>"
 
 required_changes:
   - [blocking] <file/area>: <specific fix>
@@ -124,15 +144,39 @@ pr_url: <https://github.com/.../pull/N>
 review_summary: |
   <2-4 sentences: what was reviewed and why it is acceptable>
 
+spec_conformance:
+  - ac: "<text of checkbox 1>"
+    status: MET
+    evidence: path/to/file.go:<line>
+  - ac: "<text of checkbox 2>"
+    status: MET
+    evidence: path/to/file.go:<line>
+
 verification_reference: |
   <condensed from HANDOFF:VERIFIED>
 
 non_blocking_notes:
   - <suggestions/nits, if any>
 
+retrospective: |
+  <One short line: what was surprising about this PR, or what — if it had been
+  documented in AGENTS.md / docs/ from the start — would have prevented a re-run
+  or saved a review cycle. If nothing, write "nothing to record". Always emit
+  this field, even on CLEAN verdicts.>
+
 next_agent: none
 ---END HANDOFF---
 ```
+
+### 0. Append retrospective to LEARNINGS.md (required on approval, before commit)
+
+Before staging anything, append one line to `LEARNINGS.md` under the `## Entries` section:
+
+```powershell
+Add-Content -Path LEARNINGS.md -Value "- $(Get-Date -Format yyyy-MM-dd) #<pr_number>: <retrospective text>" -Encoding utf8
+```
+
+If the retrospective is `nothing to record`, skip the append. The `LEARNINGS.md` change goes in the same commit as the rest of the issue work — do not split it into its own commit. The compound value of this file is the entire reason this step exists; if you find the same line being appended twice, that is the signal to promote the lesson to `AGENTS.md`.
 
 ### 1. Commit (required on approval)
 

@@ -60,7 +60,22 @@ gh pr checks <pr_number>
 - **If any check has failed** — do not read the diff. Select **Issues found — hand off to Coder** immediately. In your message, include the name of each failing check and the direct link to the failing Actions run.
 - **Only if all checks are green** — proceed to step 3.
 
-### 3. Review checklist
+### 3. Spec-conformance pass (mandatory, before the checklist)
+
+Open the original issue body:
+
+```bash
+gh issue view <issue_number>
+```
+
+For **every `[ ]` checkbox in the Acceptance criteria section**, cite one of:
+
+- a `file:line` from the diff that satisfies it, **or**
+- `UNMET — <one-line reason nothing in the diff covers it>`
+
+Record this in your report as the **Spec conformance** table (template below). Any `UNMET` row is a 🔴 BLOCKING finding by definition — do not hand-wave by counting "close enough". Spec drift is the #1 cause of bad merges in this pipeline; this pass exists to catch it.
+
+### 4. Review checklist
 
 Run in priority order. Assign every finding a severity before moving on.
 
@@ -109,13 +124,19 @@ Run in priority order. Assign every finding a severity before moving on.
 - Simplify complex logic
 - Naming improvements
 
-### 4. Write the report
+### 5. Write the report
 
 ```markdown
 ## Review Report — PR #<number>: <title>
 
 **CI**: passing / failing / pending
 **Verdict:** BLOCKING | IMPORTANT ONLY | CLEAN
+
+### Spec conformance
+| AC | Status | Evidence |
+|---|---|---|
+| 1. <text of checkbox 1> | MET / UNMET | `path/to/file.go:<line>` or reason |
+| 2. ... | ... | ... |
 
 ### 🔴 Blocking (<N>)
 1. `path/to/file.go:<line>` — <description and specific fix>
@@ -128,11 +149,21 @@ Run in priority order. Assign every finding a severity before moving on.
 
 ### ✅ Passed
 - <what looked good>
+
+### 🔁 Retrospective
+
+Emit a single line in this exact format so the user can copy-paste it straight into `LEARNINGS.md`:
+
+```
+LEARNINGS-APPEND: - <YYYY-MM-DD> #<PR>: <one short sentence — what was surprising about this PR, or what would have prevented a re-run if it had been in AGENTS.md from the start>
+```
+
+If nothing is worth recording, write `LEARNINGS-APPEND: (nothing to record)` instead. Always emit this section, even on CLEAN verdicts. You are read-only — do not edit `LEARNINGS.md` yourself; the user (or Coder on the next handoff) will append it. The compound value of this file is the entire reason it exists.
 ```
 
 Every finding must include: file path + line number from the diff, a description of the problem, and a specific suggestion for how to fix it.
 
-### 5. Hand off or stop
+### 6. Hand off or stop
 
 **If verdict is CLEAN** — post the report and stop. Do not select any handoff button.
 

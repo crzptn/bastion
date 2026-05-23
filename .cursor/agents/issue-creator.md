@@ -31,6 +31,18 @@ Explore the codebase (read-only) to derive `area/*` labels and realistic verific
 
 ## Workflow
 
+### 0. Ambiguity check (mandatory)
+
+Before any `gh` or file work, output an **Ambiguities** section in chat enumerating every unclear point in the user's request, or write `NONE` if fully specified:
+
+```markdown
+### Ambiguities
+1. <what is unclear and what assumption you'd otherwise make>
+2. ...
+```
+
+If items are listed, ask the user to resolve each one and wait. Only proceed to step 1 once every item is resolved or explicitly accepted as "use your judgement". Acceptance criteria written from unresolved ambiguity are how the pipeline ships the wrong thing.
+
 ### 1. Repo and existing GitHub state
 
 ```bash

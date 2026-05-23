@@ -36,6 +36,8 @@ You receive from the Planner:
 - The implementation plan
 - The original issue number and title
 
+When you are re-invoked by the Reviewer after a failed review, the report will include a **Spec conformance** table. Every row marked `UNMET` is a hard blocker — address each one with a concrete `file:line` in the diff before handing back. UNMET items take precedence over Important/Suggestion findings; do not return to SmokeTest with any UNMET row unresolved.
+
 ## Workflow
 
 ### 1. Confirm the branch
@@ -53,6 +55,10 @@ Use #tool:todos to track each step in the plan. Create a todo item for every ste
 ### 3. Implement
 
 Execute every step in the plan in order. Read existing files before editing them. Follow the conventions already established in the codebase — especially the `internal/health` pattern for new subsystems.
+
+**Tests-first for domain code (mandatory):** for any new or changed function under `internal/<subsystem>/` that is *pure domain logic* (not HTTP plumbing, not wiring in `main.go`, not a thin store call), write the Go test cases first in `<subsystem>_test.go`, run them, confirm they fail for the right reason, then implement until they pass. This is non-negotiable for anything with math, branching, or state transitions (wave logic, damage calc, targeting, pathing, score rules). SmokeTest only proves the server runs — it will not catch off-by-ones in domain code.
+
+For HTTP-only / wiring-only / docs / config changes, skip the tests-first step.
 
 Before using any external library, look up its current API with Context7:
 ```

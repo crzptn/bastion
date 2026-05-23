@@ -24,9 +24,7 @@ flowchart TD
 
     User -.->|"issues: 42"| Planner[IssuePlanner]
     GH --> Planner
-    Planner -->|"plan + branch"| Approve{plan ok?}
-    Approve -- no --> Planner
-    Approve -- yes --> Coder[IssueCoder]
+    Planner -->|"plan + branch (auto-handoff)"| Coder[IssueCoder]
 
     Coder -->|"commit + PR"| Smoke[IssueSmokeTest]
     Smoke -- tests fail --> Coder
@@ -42,11 +40,11 @@ The handoffs are wired in the agent frontmatter (`handoffs:` block), so once a s
 
 This is my daily driver. Copilot Chat picks up the agents from `.github/agents/*.agent.md` automatically.
 
-1. **Groom the backlog** — `@IssueCreator break down the lobby-matchmaking feature into issues`. It writes labels, milestones, and issues with binary acceptance criteria via `gh`.
-2. **Plan** — `@IssuePlanner issues: 42`. It reads the issue, greps the repo, asks me clarifying questions, writes a plan to `/memories/session/plan.md`, and creates the branch. I either approve or push back.
-3. **Auto-handoff to Coder** — implements the plan, runs `make fmt` / `make lint` / `bun run lint`, commits, opens a PR.
+1. **Groom the backlog** — `@IssueCreator break down the lobby-matchmaking feature into issues`. It runs an ambiguity gate (lists every unclear point or writes NONE), waits for answers, then writes labels, milestones, and issues with binary acceptance criteria via `gh`. **This is the real planning gate** — the AC list is the contract everything downstream is measured against.
+2. **Plan** — `@IssuePlanner issues: 42`. Reads the issue, greps the repo, asks clarifying questions mid-flight if anything's ambiguous, writes a plan to `/memories/session/plan.md`, creates the branch, and auto-hands off to the Coder. There is no terminal "approve plan" gate by design — if you need one, you wanted the ambiguity caught at issue-creation time.
+3. **Auto-handoff to Coder** — implements the plan (tests-first for any pure-domain code under `internal/<subsystem>/`), runs `make fmt` / `make lint` / `bun run lint`, commits, opens a PR.
 4. **Auto-handoff to SmokeTest** — builds, runs unit tests, boots the server, curls the new endpoints, reports.
-5. **Auto-handoff to Reviewer** — reads `gh pr diff`, files a written report. If anything is off, it bounces back to Coder; otherwise I merge.
+5. **Auto-handoff to Reviewer** — waits for CI green, does an explicit spec-conformance pass (cites a `file:line` for every acceptance-criterion checkbox or marks it UNMET), runs the review checklist, and appends a one-line **Retrospective** to `LEARNINGS.md` so each PR compounds into project memory. Bounces back to Coder on findings; otherwise I merge.
 
 Models used (set per-agent in the frontmatter):
 - Planner: **Claude Opus 4.6**
@@ -57,8 +55,10 @@ Models used (set per-agent in the frontmatter):
 Cursor has its own agent system under [`.cursor/agents/`](./.cursor/agents/) (`planner.md`, `coder.md`, `smoke-tester.md`, `reviewer.md`, `issue-creator.md`) with shared conventions in `_bastion-conventions.md` and rules in `.cursor/rules/subagents.mdc`. The pipeline mirrors the VS Code one one-for-one:
 
 ```
-@planner issues: 42   →   (approve)   →   @coder   →   @smoke-tester   →   @reviewer
+@planner issues: 42   →   @coder   →   @smoke-tester   →   @reviewer
 ```
+
+No terminal plan-approval gate — clarifications happen mid-flight via `askQuestions`, and the real planning happens upstream in `@issue-creator`.
 
 **A note on models:** you should be running better models than I did here — ideally **Opus 4.7** (or whatever the current top-tier reasoner is) on the planner, and Sonnet 4.6 on the rest. Planning is where bad calls compound, so spend the tokens there. I set this repo up while stuck in the Cursor slow pool, so the actual outputs reflect that, not what the pipeline can do when properly fed.
 
@@ -74,9 +74,8 @@ sequenceDiagram
 
     Me->>P: issues: 42
     P->>P: research repo, draft plan
-    P->>Me: present plan + questions
-    Me->>P: approve
-    P->>C: handoff (branch ready)
+    P-->>Me: ask clarifying questions mid-flight (if any)
+    P->>C: auto-handoff (branch ready, no approval gate)
     C->>C: edit, fmt, lint, commit, gh pr create
     C->>S: handoff (PR open)
     S->>S: build, test, curl endpoints
@@ -85,11 +84,14 @@ sequenceDiagram
         C->>S: re-implement
     else tests pass
         S->>R: handoff
-        R->>R: read diff + checks
+        R->>R: wait for CI green
+        R->>R: spec-conformance pass (cite file:line per AC)
+        R->>R: review checklist
         alt issues found
-            R->>C: review report
+            R->>C: review report (UNMET ACs = hard blockers)
             C->>S: re-loop
         else clean
+            R->>R: append retrospective to LEARNINGS.md
             R->>Me: ✅ ready to merge
         end
     end
@@ -103,6 +105,7 @@ sequenceDiagram
 - `migrations/` — golang-migrate SQL
 - `web/` — Bun + React + Vite + Tailwind 4 SPA
 - `.github/agents/` — the agents that actually wrote most of this
+- [`LEARNINGS.md`](./LEARNINGS.md) — one-line-per-PR retrospective log the Reviewer appends to; lessons that repeat get promoted to `AGENTS.md`
 
 Architecture rules and the dev workflow agents must follow live in [AGENTS.md](AGENTS.md) and [docs/backend-architecture.md](docs/backend-architecture.md).
 

@@ -46,6 +46,11 @@ issue_url: ...
 failure_summary: |
   <what failed or what review found>
 
+spec_conformance:                   # present when from_agent is reviewer
+  - ac: "<text of checkbox>"
+    status: MET | UNMET
+    evidence: path/to/file.go:<line> | "<reason nothing covers it>"
+
 required_changes:
   - <specific change 1>
   - <change 2>
@@ -59,13 +64,16 @@ next_agent: coder
 
 If `HANDOFF:FIX` is present, address **only** the listed required changes; do not expand scope.
 
+**Spec conformance precedence:** when `spec_conformance` is present, every row with `status: UNMET` is a hard blocker that must be addressed in this cycle, *in addition to* anything under `required_changes`. Do not handoff back until every UNMET acceptance criterion has a concrete `file:line` in the diff that satisfies it.
+
 ## Workflow
 
 1. **Confirm scope** — Restate acceptance criteria from the plan; ask the user only if blocking ambiguity remains.
 2. **Branch** — Work on `branch_name` from `HANDOFF:PLAN` (format `task/<issue-number>-<slug>`). If not on that branch, `git switch` it (create from default only if the planner did not run and no branch exists).
-3. **Implement** — Follow `files_to_change` and `approach`; match project conventions (read surrounding code first).
-4. **Self-check** — Run the smallest relevant command (formatter, typecheck, or targeted test) if the project defines one; fix obvious breakages.
-5. **Summarize** — Note what changed, what was not done, and any follow-ups.
+3. **Tests-first for domain code (mandatory)** — for any new or changed function under `internal/<subsystem>/` that is pure domain logic (not HTTP plumbing, not wiring in `main.go`, not a thin store call), write the Go test cases first in `<subsystem>_test.go`, run them, confirm they fail for the right reason, then implement until they pass. Skip only for HTTP-only / wiring-only / docs / config changes — SmokeTest only proves the server runs, it will not catch off-by-ones in math, branching, or state transitions.
+4. **Implement** — Follow `files_to_change` and `approach`; match project conventions (read surrounding code first).
+5. **Self-check** — Run the smallest relevant command (formatter, typecheck, or targeted test) if the project defines one; fix obvious breakages.
+6. **Summarize** — Note what changed, what was not done, and any follow-ups.
 
 ## Output: handoff to smoke-tester
 
