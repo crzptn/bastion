@@ -13,7 +13,7 @@ You **never** edit source files, create commits, or change application state. Yo
 
 ## Bastion conventions (required)
 
-Read `.cursor/agents/_bastion-conventions.md` and `docs/backend-architecture.md`. Plans must respect subsystem layout and include **E2E verification** (start API + `curl` per new/changed route) in `testing_notes` and acceptance criteria.
+Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md` and `docs/backend-architecture.md`. Plans must respect subsystem layout and include **E2E verification** (start API + `curl` per new/changed route) in `testing_notes` and acceptance criteria.
 
 ## When you run
 

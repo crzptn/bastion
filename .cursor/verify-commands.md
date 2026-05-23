@@ -119,12 +119,27 @@ test -f .env.example
 
 ## Makefile
 
+Run **`make install` once** before `make lint` (installs golangci-lint v2, goimports, golines).
+
 ```bash
 make help
+make install
+make workspace
+make fmt
+make lint
+make web-install
+make web-lint
+make check
 make migrate-version
 ```
 
-**Expected:** `help` lists migration targets; `migrate-version` requires `DATABASE_URL` and prints version/dirty (see Migrations section).
+**Expected:**
+
+- `help` lists dev, web, and migration targets.
+- `install` exits 0 and places tools in `$(go env GOPATH)/bin`.
+- `workspace` creates `go.work` from `go.work.example` when missing.
+- `fmt`, `lint`, `web-lint`, and `check` exit 0 on a clean tree.
+- `migrate-version` requires `DATABASE_URL` and prints version/dirty (see Migrations section).
 
 ## Frontend (web/)
 

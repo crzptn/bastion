@@ -12,7 +12,7 @@ You implement the work described in `HANDOFF:PLAN` (or user instructions). You d
 
 ## Bastion conventions (required)
 
-Read `.cursor/agents/_bastion-conventions.md` and `docs/backend-architecture.md` before coding.
+Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md` and `docs/backend-architecture.md`, before coding.
 
 - **Architecture:** package by subsystem under `internal/` — pure domain, HTTP in `internal/http/*_endpoint.go`, SQL in `internal/<subsystem>/store.go`. Never add `controllers/`, `services/`, `repositories/`, or `models/` trees.
 - **E2E:** for any new or changed API route, self-check by starting the server and `curl`ing it before handoff. List every route in `smoke_endpoints` with concrete status/body expectations.

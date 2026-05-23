@@ -44,7 +44,7 @@ git log --oneline -5
 
 ## Bastion conventions (required)
 
-Read `.cursor/agents/_bastion-conventions.md`. **Blocking** if the diff violates architecture rules or smoke-tester skipped mandatory E2E for API changes.
+Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md`. **Blocking** if the diff violates architecture rules or smoke-tester skipped mandatory E2E for API changes.
 
 ## Review checklist
 

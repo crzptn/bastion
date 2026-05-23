@@ -143,13 +143,30 @@ go build ./cmd/api
 go build ./cmd/migrate
 ```
 
-## Architecture
+## Architecture and agents
 
 Backend packaging rules (subsystem-oriented layout, minmux, domain purity) are documented in [docs/backend-architecture.md](docs/backend-architecture.md).
 
+Contributors and Cursor agents should read **[AGENTS.md](AGENTS.md)** first — it defines mandatory E2E verification, architecture constraints, and dev workflow.
+
 ## Makefile
 
-Run `make help` for available targets. Migration targets (`migrate-up`, `migrate-down`, `migrate-version`, `migrate-create`) require `DATABASE_URL`. Full fmt/lint/dev targets are planned in [issue #5](https://github.com/JoakimCarlsson/bastion/issues/5).
+Run `make help` for all targets.
+
+Run **`make install` once** before `make lint` (installs golangci-lint v2, goimports, and golines).
+
+| Target | Purpose |
+|--------|---------|
+| `make install` | Install Go lint/format tools (once) |
+| `make workspace` | Copy `go.work.example` → `go.work` if missing |
+| `make fmt` | Format Go code under `cmd/` and `internal/` |
+| `make lint` | `go vet ./...` + golangci-lint |
+| `make web-install` | `bun install` in `web/` |
+| `make web-fmt` | Prettier write in `web/` |
+| `make web-lint` | ESLint in `web/` |
+| `make check` | `lint` + `web-lint` + `go test -short ./...` |
+
+Migration targets (`migrate-up`, `migrate-down`, `migrate-version`, `migrate-create`) require `DATABASE_URL` — see [Database migrations](#database-migrations) above.
 
 ## License
 

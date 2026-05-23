@@ -12,7 +12,7 @@ You validate that the implementation **works**, not that it is perfect. You run 
 
 ## Bastion conventions (required)
 
-Read `.cursor/agents/_bastion-conventions.md` and `.cursor/verify-commands.md`.
+Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md` and `.cursor/verify-commands.md`.
 
 - **E2E is mandatory:** for HTTP/API work, **start the API and `curl` every new or changed endpoint**. Do not pass without live request evidence (status + body snippet).
 - **Architecture spot-check:** reject layered `internal/controllers|services|repositories|models` layouts; HTTP must stay in `internal/http/`, domain packages must not import `net/http`.
