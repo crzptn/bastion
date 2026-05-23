@@ -10,10 +10,11 @@ Four agents in a chain, plus a creator for backlog grooming:
 
 **Planner → Coder → SmokeTest → Reviewer**
 
-There are two parallel sets of agent definitions — same pipeline, different homes:
+There are three parallel sets of agent definitions — same pipeline, different homes:
 
 - **VS Code (Copilot Chat)** reads [`.github/agents/*.agent.md`](./.github/agents/)
 - **Cursor** reads [`.cursor/agents/*.md`](./.cursor/agents/) plus rules in [`.cursor/rules/*.mdc`](./.cursor/rules/)
+- **Claude Code** reads [`.claude/agents/*.md`](./.claude/agents/) and the orchestrator at [`.claude/commands/pipeline.md`](./.claude/commands/pipeline.md)
 
 Keeping them in sync is a manual chore, but the workflow they describe is identical.
 
@@ -62,6 +63,20 @@ No terminal plan-approval gate — clarifications happen mid-flight via `askQues
 
 **A note on models:** you should be running better models than I did here — ideally **Opus 4.7** (or whatever the current top-tier reasoner is) on the planner, and Sonnet 4.6 on the rest. Planning is where bad calls compound, so spend the tokens there. I set this repo up while stuck in the Cursor slow pool, so the actual outputs reflect that, not what the pipeline can do when properly fed.
 
+## Example flow — Claude Code
+
+Claude Code has the same five agents under [`.claude/agents/`](./.claude/agents/) (`planner.md`, `coder.md`, `smoke-tester.md`, `reviewer.md`, `issue-creator.md`) sharing `_bastion-conventions.md`. The key structural difference: **Claude Code has no auto-handoff button.** Subagents return one summary and stop.
+
+To bridge that, there's a slash command at [`.claude/commands/pipeline.md`](./.claude/commands/pipeline.md). You run it as:
+
+```
+/pipeline 42
+```
+
+The orchestrator invokes each agent in sequence via the `Agent` tool, reads the structured `HANDOFF:*` block in their final output, and routes the next stage based on the verdict. Smoke and review failures loop back to the coder; retries are capped at 3 to prevent runaway burn.
+
+Pipeline behaviours (ambiguity gate, tests-first, spec-conformance pass, CI-green gate, `LEARNINGS.md` write/read) are identical to the other two homes — only the chaining mechanism differs.
+
 ## The inner loop (what each cycle looks like)
 
 ```mermaid
@@ -104,7 +119,7 @@ sequenceDiagram
 - `internal/http/*_endpoint.go` — HTTP layer (minmux)
 - `migrations/` — golang-migrate SQL
 - `web/` — Bun + React + Vite + Tailwind 4 SPA
-- `.github/agents/` — the agents that actually wrote most of this
+- `.github/agents/`, `.cursor/agents/`, `.claude/agents/` — the three agent homes that actually wrote most of this
 - [`LEARNINGS.md`](./LEARNINGS.md) — one-line-per-PR retrospective log the Reviewer **writes to directly** (via `Add-Content` from the terminal) on clean verdicts. The Planner **reads** it before drafting each new plan, so applicable past lessons surface in the new plan's summary. Lessons that appear twice get promoted to `AGENTS.md`.
 
 Architecture rules and the dev workflow agents must follow live in [AGENTS.md](AGENTS.md) and [docs/backend-architecture.md](docs/backend-architecture.md).
