@@ -6,6 +6,7 @@ import {
   createInitialRunState,
   placeTower,
   spawnWave,
+  tickCombat,
   tickEnemies,
 } from '../game';
 import type { EnemyInstance, RunState } from '../game';
@@ -34,7 +35,9 @@ export function PlayPage() {
       if (lastTsRef.current !== null) {
         const rawDt = (ts - lastTsRef.current) / 1000;
         const dt = Math.min(rawDt, MAX_DT);
-        setRunState((s) => tickEnemies(s, STARTER_MAP.path, dt));
+        // Order: move enemies first (tickEnemies), then resolve tower combat
+        // (tickCombat) so towers see updated positions before firing this frame.
+        setRunState((s) => tickCombat(tickEnemies(s, STARTER_MAP.path, dt), STARTER_MAP.path, dt));
       }
       lastTsRef.current = ts;
       rafId = requestAnimationFrame(loop);

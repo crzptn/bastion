@@ -30,6 +30,7 @@ export type TowerInstance = {
   defId: string;
   x: number;
   y: number;
+  cooldownRemaining: number;
 };
 
 export type EnemyDef = {
