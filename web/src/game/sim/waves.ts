@@ -143,12 +143,14 @@ export function tickWaves(state: RunState, dtSeconds: number): RunState {
   const boardEmpty = updatedEnemies.length === 0;
 
   if (allSpawned && boardEmpty) {
+    const nextWaveIndex = state.waveIndex + 1;
+    const isFinalWave = nextWaveIndex >= WAVES.length;
     return {
       ...state,
       enemies: updatedEnemies,
       nextEnemyId,
-      phase: 'prep',
-      waveIndex: state.waveIndex + 1,
+      phase: isFinalWave ? 'victory' : 'prep',
+      waveIndex: nextWaveIndex,
       waveProgress: null,
     };
   }
