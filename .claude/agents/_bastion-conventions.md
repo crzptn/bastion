@@ -50,4 +50,6 @@ When adding a subsystem: domain package → optional `store.go` → `http/<name>
 
 ## Pipeline note
 
-Claude Code has no auto-handoff buttons. Chaining is done by `/pipeline` (see `.claude/commands/pipeline.md`), which invokes each agent in sequence via the `Agent` tool and routes the next stage based on the verdict in each agent's final output. Agents end with a structured `HANDOFF:*` block — same shape as `.cursor/agents/` — and `/pipeline` reads that block to decide what to do next.
+Claude Code has no auto-handoff buttons. Chaining is done by `/pipeline` (see `.claude/commands/pipeline.md`), which invokes each agent in sequence via the `Agent` tool and routes the next stage based on the verdict in each agent's final output. Agents end with a structured `HANDOFF:*` block defined in **`docs/pipeline-handoff-schema.md`** — same shape across all three homes — and `/pipeline` parses that block to validate, log, and decide what to do next.
+
+The full chain is **planner → red-team → coder → smoke-tester → reviewer**. The red-team subagent walks every `assumptions[]` entry in the plan; on `RED-TEAM:REFUTED` the plan goes back to the user (ambiguity gate), not to the coder. The orchestrator additionally enforces a **failure-signature circuit breaker** (repeat hash = stop), a **per-issue token budget** (default 400000, override via `BASTION_PIPELINE_BUDGET`), and writes a **per-run JSONL log** under `.pipeline-runs/<issue>/<run-id>.jsonl` — see `docs/pipeline-observability.md`.

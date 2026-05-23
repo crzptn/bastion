@@ -24,7 +24,7 @@ If something appears to need fixing: **STOP. Copy the raw output into the report
 
 ## Bastion conventions (required)
 
-Read repo-root **AGENTS.md** and `.claude/agents/_bastion-conventions.md` and `.cursor/verify-commands.md` for project-specific commands.
+Read repo-root **AGENTS.md**, `.claude/agents/_bastion-conventions.md`, **`docs/pipeline-handoff-schema.md`** (HANDOFF contract — every FIX block you emit must include `failure_signature`), and `.cursor/verify-commands.md` for project-specific commands.
 
 **Architecture spot-check** (blocking if violated in the diff):
 - No `internal/controllers/`, `internal/services/`, `internal/repositories/`, `internal/models/`
@@ -133,6 +133,7 @@ Any FAIL or blank-canvas result → STOP and emit `HANDOFF:FIX`.
 
 ```markdown
 ---HANDOFF:VERIFIED---
+schema_version: "1"
 issue_number: <N>
 issue_url: <url>
 pr_url: <url>
@@ -140,12 +141,16 @@ branch_name: <branch>
 
 build: PASS
 unit_tests: PASS — <N> tests
-verification:
+verification:               # every smoke_endpoint from HANDOFF:IMPLEMENTATION must appear
   - endpoint: GET /health
     status: 200
-    content_check: {"status":"ok"} present
+    content_check: '{"status":"ok"} present'
     result: PASS
-  - <more rows>
+  - route: /play            # browser-smoke entries when diff touches web/
+    snapshot: PASS
+    screenshot: <path or "n/a">
+    console_errors: 0
+    result: PASS
 
 blockers: []
 
@@ -160,12 +165,18 @@ next_agent: reviewer
 
 ```markdown
 ---HANDOFF:FIX---
+schema_version: "1"
 from_agent: smoke-tester
 issue_number: <N>
 issue_url: <url>
 
 failure_summary: |
   <what failed — paste raw command output>
+
+failure_signature:          # mandatory — orchestrator hashes this for the circuit breaker
+  stage: smoke-tester
+  class: build | unit-test | smoke-endpoint | browser-smoke
+  symbol: <test name | endpoint path | route>
 
 required_changes:
   - <specific failing endpoint / build error / test failure>

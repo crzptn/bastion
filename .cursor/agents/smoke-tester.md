@@ -12,7 +12,7 @@ You validate that the implementation **works**, not that it is perfect. You run 
 
 ## Bastion conventions (required)
 
-Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md` and `.cursor/verify-commands.md`.
+Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md`, **`docs/pipeline-handoff-schema.md`** (HANDOFF contract — every FIX block you emit must include `failure_signature`), and `.cursor/verify-commands.md`.
 
 - **E2E is mandatory:** for HTTP/API work, **start the API and `curl` every new or changed endpoint**. Do not pass without live request evidence (status + body snippet).
 - **Architecture spot-check:** reject layered `internal/controllers|services|repositories|models` layouts; HTTP must stay in `internal/http/`, domain packages must not import `net/http`.
@@ -86,12 +86,18 @@ If anything fails:
 
 ```markdown
 ---HANDOFF:FIX---
+schema_version: "1"
 from_agent: smoke-tester
 issue_number: <N>
 issue_url: <url>
 
 failure_summary: |
-  <build | test | runtime | endpoint ÔÇö what failed>
+  <build | test | runtime | endpoint — what failed>
+
+failure_signature:          # mandatory — orchestrator hashes this for the circuit breaker
+  stage: smoke-tester
+  class: build | unit-test | smoke-endpoint | browser-smoke
+  symbol: <test name | endpoint path | route>
 
 evidence:
   build: <exit code, last 30 lines of log or "skipped">
@@ -120,18 +126,28 @@ If all checks pass:
 
 ```markdown
 ---HANDOFF:VERIFIED---
+schema_version: "1"
 issue_number: <N>
 issue_url: <url>
 issue_title: <title>
+pr_url: <url>
+branch_name: <branch>
 
-verification:
-  build: pass ÔÇö <command run>
-  tests: pass ÔÇö <command run, test count if known>
-  server: <started on port / n/a>
-  endpoints:
-    - path: <path>
-      result: pass
-      notes: <brief>
+build: PASS
+unit_tests: PASS — <N> tests
+
+verification:               # every smoke_endpoint from HANDOFF:IMPLEMENTATION must appear
+  - endpoint: GET /health
+    status: 200
+    content_check: '<expected snippet> present'
+    result: PASS
+  - route: /play            # browser-smoke entries when diff touches web/
+    snapshot: PASS
+    screenshot: <path or "n/a">
+    console_errors: 0
+    result: PASS
+
+blockers: []
 
 implementation_summary: |
   <from HANDOFF:IMPLEMENTATION changes_made, condensed>

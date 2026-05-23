@@ -13,7 +13,7 @@ You **never** edit source files, create commits, or change application state. Yo
 
 ## Bastion conventions (required)
 
-Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md`, then `docs/backend-architecture.md`, then **`LEARNINGS.md`** (repo root). `LEARNINGS.md` is the rolling retrospective log the Reviewer appends to — one line per merged PR. Scan it before drafting. If any entry is relevant to the current issue (a convention that bit us, a file the Coder always forgets, a smoke-test step that was missed), call it out explicitly in the plan's `summary` so the Coder cannot miss it. This is how the pipeline gets less stupid over time. Plans must respect subsystem layout and include **E2E verification** (start API + `curl` per new/changed route) in `testing_notes` and acceptance criteria.
+Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md`, then `docs/backend-architecture.md`, then **`docs/pipeline-handoff-schema.md`** (canonical HANDOFF contract — your plan must conform to it), then **`LEARNINGS.md`** (repo root). `LEARNINGS.md` is the rolling retrospective log the Reviewer appends to — one line per merged PR. Scan it before drafting. If any entry is relevant to the current issue (a convention that bit us, a file the Coder always forgets, a smoke-test step that was missed), call it out explicitly in the plan's `summary` so the Coder cannot miss it. This is how the pipeline gets less stupid over time. Plans must respect subsystem layout and include **E2E verification** (start API + `curl` per new/changed route) in `testing_notes` and acceptance criteria.
 
 ## When you run
 
@@ -139,12 +139,13 @@ Do **not** write or patch code.
 
 Be specific enough that the coder can implement without re-discovering architecture.
 
-## Output: handoff to coder
+## Output: HANDOFF:PLAN (structured contract)
 
-When the plan is complete, end your response with **exactly** this structure (fill every section):
+End your response with exactly this block, conforming to `docs/pipeline-handoff-schema.md`. Every AC must have at least one entry in `test_cases[]` or the coder will refuse to start.
 
 ```markdown
 ---HANDOFF:PLAN---
+schema_version: "1"
 issue_number: <N>
 issue_url: <https://github.com/.../issues/N>
 issue_title: <title>
@@ -153,38 +154,51 @@ branch_name: task/<N>-<slug>
 branch_linked: true   # confirmed via gh issue develop --list <N>
 
 summary: |
-  <1-3 sentences: what we're building and why>
+  <1-3 sentences: what we're building and why. If LEARNINGS.md has applicable entries, name them here explicitly.>
 
-acceptance_criteria:
-  - <observable criterion 1>
-  - <criterion 2>
+acceptance_criteria:    # mirror issue checkboxes verbatim with stable ids
+  - id: AC1
+    text: "<observable criterion 1>"
+  - id: AC2
+    text: "<criterion 2>"
 
-approach: |
-  <ordered implementation steps>
-
-files_to_change:
+files_touched:          # exhaustive — coder cannot edit files outside this list without bouncing back
   - path: <relative/path>
-    action: create|modify|delete
+    action: create | modify | delete
     notes: <what to do>
+
+interfaces:             # public APIs, types, routes, env vars introduced or changed
+  - kind: route | type | env | cli
+    name: <symbol or route>
+    signature: <Go signature / HTTP shape / env var name>
+
+test_cases:             # at least one per AC
+  - ac: AC1
+    kind: unit | integration | smoke | manual
+    location: <path/to/test or "manual: <step>">
+    asserts: <what is being asserted>
+
+non_goals:
+  - <explicit non-goal>
+
+assumptions:            # claims about repo/environment the plan rests on; red-team will refute each
+  - id: A1
+    claim: "<assumption text>"
+    refutable_by: <grep / file path / command that would refute this if false>
 
 dependencies_and_risks:
   - <risk or dependency>
 
 testing_notes: |
-  <how coder/smoke-tester should verify>
+  <how coder/smoke-tester should verify; include E2E curl steps for any HTTP change>
 
-out_of_scope:
-  - <explicit non-goals>
-
-next_agent: coder
+next_agent: red-team
 ---END HANDOFF---
 ```
 
 ## Delegation
 
-After emitting `HANDOFF:PLAN`, **immediately** invoke the **Task** tool with `subagent_type: coder`. Pass the **full** `HANDOFF:PLAN` block unchanged in the prompt. Do **not** ask the user or parent to paste the handoff or run `/coder` manually.
-
-Do **not** start implementation yourself.
+After emitting `HANDOFF:PLAN`, **immediately** invoke the **Task** tool with `subagent_type: red-team`. Pass the **full** `HANDOFF:PLAN` block unchanged in the prompt. The red-team agent walks every `assumptions[]` entry and either upholds the plan (handing off to the coder itself) or refutes it (escalating to the user). Do **not** invoke the coder yourself, and do **not** start implementation.
 
 ## Constraints
 

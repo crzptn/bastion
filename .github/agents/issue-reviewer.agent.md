@@ -32,7 +32,7 @@ Do not run any other command.
 
 ## Bastion conventions (required)
 
-Read **AGENTS.md** (repo root) and `docs/backend-architecture.md`. The following are **blocking** if found in the diff:
+Read **AGENTS.md** (repo root), `docs/backend-architecture.md`, and **`docs/pipeline-handoff-schema.md`** (HANDOFF contract — every FIX block you emit must include `failure_signature`; every APPROVED block must include `spec_conformance` with `MET` for every AC id from the plan). The following are **blocking** if found in the diff:
 
 - `internal/controllers/`, `internal/services/`, `internal/repositories/`, or `internal/models/` trees
 - Domain packages (`internal/<subsystem>/`) importing `net/http`
@@ -80,6 +80,8 @@ For **every `[ ]` checkbox in the Acceptance criteria section**, cite one of:
 
 - a `file:line` from the diff that satisfies it, **or**
 - `UNMET — <one-line reason nothing in the diff covers it>`
+
+Additionally, scan the PR body's "## Test plan" section: every `- [ ]` / `- [x]` line must itself reference a `file:line` (so a reader of the PR can navigate without re-running the reviewer). Missing citations in the PR body are a blocking finding — emit `HANDOFF:FIX` with `failure_signature: { stage: reviewer, class: spec-conformance, symbol: "<AC id missing citation>" }`.
 
 Record this in your report as the **Spec conformance** table (template below). Any `UNMET` row is a 🔴 BLOCKING finding by definition — do not hand-wave by counting "close enough". Spec drift is the #1 cause of bad merges in this pipeline; this pass exists to catch it.
 
@@ -196,8 +198,76 @@ If nothing is worth recording, skip steps a–c entirely and write `(nothing to 
 
 Every finding must include: file path + line number from the diff, a description of the problem, and a specific suggestion for how to fix it.
 
-### 6. Hand off or stop
+### 6. Emit the structured HANDOFF block and hand off
 
-**If verdict is CLEAN** — post the report and stop. Do not select any handoff button.
+Before selecting a handoff button (or finishing on CLEAN), emit a structured HANDOFF block conforming to `docs/pipeline-handoff-schema.md`. On CLEAN verdicts emit `HANDOFF:APPROVED`; on BLOCKING verdicts emit `HANDOFF:FIX`. Every AC id from the `HANDOFF:PLAN` must appear in `spec_conformance[]`.
 
-**If there are genuine issues** — list them clearly, then select **Issues found — hand off to Coder**.
+```markdown
+---HANDOFF:FIX---
+schema_version: "1"
+from_agent: reviewer
+issue_number: <N>
+issue_url: <url>
+
+failure_summary: |
+  Code review: <N> blocking, <M> suggestions
+
+failure_signature:          # mandatory
+  stage: reviewer
+  class: spec-conformance | review | ci
+  symbol: <AC id | file path | failing check name>
+
+spec_conformance:
+  - ac: AC1
+    status: MET | UNMET
+    evidence: path/to/file.go:<line> | "<reason nothing covers it>"
+
+required_changes:
+  - [blocking] <file/area>: <specific fix>
+
+suggestions:
+  - [suggestion] <...>
+
+prior_handoff_plan: |
+  <acceptance_criteria from issue>
+
+next_agent: coder
+---END HANDOFF---
+```
+
+```markdown
+---HANDOFF:APPROVED---
+schema_version: "1"
+issue_number: <N>
+issue_url: <url>
+issue_title: <title>
+pr_url: <url>
+
+review_summary: |
+  <2-4 sentences>
+
+spec_conformance:
+  - ac: AC1
+    status: MET
+    evidence: path/to/file.go:<line>
+
+verification_reference: |
+  <condensed from HANDOFF:VERIFIED>
+
+non_blocking_notes:
+  - <suggestions/nits, if any>
+
+retrospective: |
+  <The exact line appended to LEARNINGS.md, or "nothing to record".>
+
+next_agent: none
+---END HANDOFF---
+```
+
+**If verdict is CLEAN** — post the report (with `HANDOFF:APPROVED`) and stop. Do not select any handoff button.
+
+**If there are genuine issues** — list them clearly with `HANDOFF:FIX`, then select **Issues found — hand off to Coder**.
+
+## Lesson enforcement (when promoting LEARNINGS to AGENTS.md)
+
+If a `LEARNINGS.md` entry has appeared twice or more, promote it to `AGENTS.md` AND, where the lesson is mechanical, also create a deterministic enforcement artifact (lint rule, grep pre-commit hook, or test). Prose lessons rot. Enforced lessons compound. See "Enforced lessons" in `AGENTS.md`.

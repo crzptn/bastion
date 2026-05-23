@@ -62,7 +62,7 @@ gh pr checks <pr_number>
 
 ## Bastion conventions (required)
 
-Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md`. **Blocking** if the diff violates architecture rules or smoke-tester skipped mandatory E2E for API changes.
+Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md`, and **`docs/pipeline-handoff-schema.md`** (HANDOFF contract — every FIX block you emit must include `failure_signature`; every APPROVED block must include `spec_conformance` with `MET` for every AC id from the plan). **Blocking** if the diff violates architecture rules or smoke-tester skipped mandatory E2E for API changes.
 
 ## Spec-conformance pass (mandatory, before the checklist below)
 
@@ -76,6 +76,8 @@ For **every `[ ]` checkbox in the Acceptance criteria section**, cite one of:
 
 - a `file:line` from the diff that satisfies it, **or**
 - `UNMET — <one-line reason nothing in the diff covers it>`
+
+Additionally, scan the PR body's "## Test plan" section: every `- [ ]` / `- [x]` line must itself reference a `file:line` (so a reader of the PR can navigate without re-running the reviewer). Missing citations are a blocking finding — emit `HANDOFF:FIX` with `failure_signature: { stage: reviewer, class: spec-conformance, symbol: "<AC id missing citation>" }`.
 
 Any `UNMET` row is a **blocking** finding by definition. Spec drift is the #1 cause of bad merges in this pipeline; this pass exists to catch it. Record the table in the `spec_conformance` field of `HANDOFF:APPROVED` / `HANDOFF:FIX`.
 
@@ -102,6 +104,7 @@ If any **blocking** issues exist (or user explicitly requires zero suggestions):
 
 ```markdown
 ---HANDOFF:FIX---
+schema_version: "1"
 from_agent: reviewer
 issue_number: <N>
 issue_url: <url>
@@ -109,8 +112,13 @@ issue_url: <url>
 failure_summary: |
   Code review: <N> blocking, <M> suggestions
 
-spec_conformance:
-  - ac: "<text of checkbox 1>"
+failure_signature:          # mandatory — orchestrator hashes this for the circuit breaker
+  stage: reviewer
+  class: spec-conformance | review | ci
+  symbol: <AC id | file path | failing check name>
+
+spec_conformance:           # every AC id from HANDOFF:PLAN must appear
+  - ac: AC1
     status: MET | UNMET
     evidence: path/to/file.go:<line> | "<one-line reason nothing in the diff covers it>"
 
@@ -136,6 +144,7 @@ If there are **no blocking** issues, emit `HANDOFF:APPROVED`, then **always** co
 
 ```markdown
 ---HANDOFF:APPROVED---
+schema_version: "1"
 issue_number: <N>
 issue_url: <url>
 issue_title: <title>
@@ -144,11 +153,11 @@ pr_url: <https://github.com/.../pull/N>
 review_summary: |
   <2-4 sentences: what was reviewed and why it is acceptable>
 
-spec_conformance:
-  - ac: "<text of checkbox 1>"
+spec_conformance:           # every AC id from HANDOFF:PLAN must appear with status MET
+  - ac: AC1
     status: MET
     evidence: path/to/file.go:<line>
-  - ac: "<text of checkbox 2>"
+  - ac: AC2
     status: MET
     evidence: path/to/file.go:<line>
 
@@ -167,6 +176,16 @@ retrospective: |
 next_agent: none
 ---END HANDOFF---
 ```
+
+## Lesson enforcement (when promoting LEARNINGS to AGENTS.md)
+
+If a `LEARNINGS.md` entry has appeared twice or more, promote it to `AGENTS.md` AND, where the lesson is mechanical, also create a deterministic enforcement artifact:
+
+- "Don't import X from Y" → a `grep` pre-commit check under `scripts/` or a `golangci-lint` rule.
+- "Always assert response body, not just status" → a smoke-tester checklist line is not enough — add a test helper.
+- "Forgot to register route in NewHandler" → an integration test that fails if a known endpoint is missing.
+
+Prose lessons rot. Enforced lessons compound. See "Enforced lessons" in `AGENTS.md`.
 
 ### 0. Append retrospective to LEARNINGS.md (required on approval, before commit)
 
