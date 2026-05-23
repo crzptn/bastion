@@ -28,6 +28,7 @@ export function tickCombat(
   state: RunState,
   path: Path,
   dtSeconds: number,
+  nowMs: number,
 ): RunState {
   if (state.phase !== 'combat') return state;
   if (state.towers.length === 0 || state.enemies.length === 0) return state;
@@ -38,6 +39,7 @@ export function tickCombat(
   const newCooldowns = new Map<string, number>(
     state.towers.map((t) => [t.id, t.cooldownRemaining]),
   );
+  const firedSet = new Set<string>();
 
   let goldEarned = 0;
 
@@ -88,6 +90,7 @@ export function tickCombat(
 
     // Reset cooldown to 1/fireRate after firing (once per tick)
     newCooldowns.set(tower.id, 1 / def.fireRate);
+    firedSet.add(tower.id);
   }
 
   // If nothing changed, return same reference to avoid unnecessary re-renders.
@@ -109,12 +112,15 @@ export function tickCombat(
   for (const enemy of state.enemies) {
     const newHp = hpMap.get(enemy.id) ?? enemy.hp;
     if (newHp <= 0) continue; // killed — remove from board
-    nextEnemies.push(newHp === enemy.hp ? enemy : { ...enemy, hp: newHp });
+    nextEnemies.push(newHp === enemy.hp ? enemy : { ...enemy, hp: newHp, lastHitAt: nowMs });
   }
 
   // Build new towers array with updated cooldowns
   const nextTowers: TowerInstance[] = state.towers.map((t) => {
     const newCd = newCooldowns.get(t.id)!;
+    if (firedSet.has(t.id)) {
+      return { ...t, cooldownRemaining: newCd, lastFiredAt: nowMs };
+    }
     return newCd === t.cooldownRemaining ? t : { ...t, cooldownRemaining: newCd };
   });
 

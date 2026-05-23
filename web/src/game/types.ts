@@ -31,6 +31,7 @@ export type TowerInstance = {
   x: number;
   y: number;
   cooldownRemaining: number;
+  lastFiredAt?: number;
 };
 
 export type EnemyDef = {
@@ -46,6 +47,7 @@ export type EnemyInstance = {
   defId: string;
   distanceTravelled: number;
   hp: number;
+  lastHitAt?: number;
 };
 
 export type WaveDef = {

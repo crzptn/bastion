@@ -19,15 +19,17 @@
  * to avoid per-frame React reconciler overhead (#43+).
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrthographicCamera } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { EnemyInstance, Grid, Path, TowerInstance } from '../types';
 import { enemyPosition } from '../sim/enemies';
 import { THEME } from './theme';
 import { ENEMY_MESHES, PLACEHOLDER_ENEMY_MESH } from './meshes/enemies';
 import { PLACEHOLDER_TOWER_MESH, TOWER_MESHES } from './meshes/towers';
+import { HitBurst } from './meshes/hitBurst';
 
 // ---------------------------------------------------------------------------
 // Shared geometry / material instances (module-level to avoid re-allocation)
@@ -234,7 +236,7 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
       {towers.map((tower) => {
         const [wx, , wz] = gridToWorld(tower.x, tower.y);
         const TowerMesh = TOWER_MESHES[tower.defId] ?? PLACEHOLDER_TOWER_MESH;
-        return <TowerMesh key={tower.id} position={[wx, 0.3, wz]} />;
+        return <TowerMesh key={tower.id} position={[wx, 0.3, wz]} lastFiredAt={tower.lastFiredAt} />;
       })}
 
       {/* Enemies — per-def mesh via ENEMY_MESHES registry.
@@ -243,7 +245,12 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
         const pos = enemyPosition(enemy, path);
         const [wx, , wz] = gridToWorld(pos.x, pos.y);
         const EnemyMesh = ENEMY_MESHES[enemy.defId] ?? PLACEHOLDER_ENEMY_MESH;
-        return <EnemyMesh key={enemy.id} position={[wx, 0.3, wz]} />;
+        return (
+          <Fragment key={enemy.id}>
+            <EnemyMesh position={[wx, 0.3, wz]} />
+            <HitBurst lastHitAt={enemy.lastHitAt} position={[wx, 0.3, wz]} />
+          </Fragment>
+        );
       })}
 
       {/* Hover highlight — only on buildable cells */}
@@ -290,6 +297,10 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
         <planeGeometry args={[cols, rows]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
+
+      <EffectComposer>
+        <Bloom intensity={0.6} luminanceThreshold={0.6} mipmapBlur />
+      </EffectComposer>
     </>
   );
 }

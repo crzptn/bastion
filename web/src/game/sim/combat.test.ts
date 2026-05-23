@@ -38,7 +38,7 @@ describe('tickCombat – phase gates', () => {
       enemies: [makeGoblin('e1')],
       towers: [makeTower('t1', 0, 0)],
     };
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next).toBe(state);
   });
 
@@ -49,19 +49,19 @@ describe('tickCombat – phase gates', () => {
       enemies: [makeGoblin('e1')],
       towers: [makeTower('t1', 0, 0)],
     };
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next).toBe(state);
   });
 
   it('returns same reference when there are no towers', () => {
     const state = combatState({ enemies: [makeGoblin('e1')] });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next).toBe(state);
   });
 
   it('returns same reference when there are no enemies', () => {
     const state = combatState({ towers: [makeTower('t1', 0, 0)] });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next).toBe(state);
   });
 });
@@ -75,7 +75,7 @@ describe('tickCombat – targeting', () => {
       enemies: [makeGoblin('e1', 0)],
     });
     const archerDamage = TOWER_DEFS.archer.damage; // 8
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next.enemies).toHaveLength(1);
     expect(next.enemies[0].hp).toBe(ENEMY_DEFS.goblin.hp - archerDamage);
   });
@@ -86,7 +86,7 @@ describe('tickCombat – targeting', () => {
       towers: [makeTower('t1', 0, 0, 'archer', 0)],
       enemies: [makeGoblin('e1', 6)],
     });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next.enemies[0].hp).toBe(ENEMY_DEFS.goblin.hp);
   });
 
@@ -96,7 +96,7 @@ describe('tickCombat – targeting', () => {
       towers: [makeTower('t1', 0, 0, 'archer', 0)],
       enemies: [makeGoblin('e1', 0), makeGoblin('e2', 2)],
     });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     // e2 (dist=2) is the priority target
     const e1 = next.enemies.find((e) => e.id === 'e1')!;
     const e2 = next.enemies.find((e) => e.id === 'e2')!;
@@ -116,7 +116,7 @@ describe('tickCombat – kill and gold reward', () => {
       towers: [makeTower('t1', 0, 0, 'archer', 0)],
       enemies: [dyingGoblin],
     });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next.enemies).toHaveLength(0);
     expect(next.gold).toBe(100 + ENEMY_DEFS.goblin.reward); // +10
   });
@@ -128,7 +128,7 @@ describe('tickCombat – kill and gold reward', () => {
       towers: [makeTower('t1', 0, 0, 'cannon', 0)], // cannon dmg=20 > 1
       enemies: [tinyGoblin],
     });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next.enemies).toHaveLength(0);
     expect(next.gold).toBe(100 + ENEMY_DEFS.goblin.reward);
   });
@@ -139,7 +139,7 @@ describe('tickCombat – kill and gold reward', () => {
       towers: [makeTower('t1', 0, 0, 'archer', 0)],
       enemies: [{ id: 'e1', defId: 'goblin', distanceTravelled: 0, hp: TOWER_DEFS.archer.damage }],
     });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next.gold).toBeGreaterThanOrEqual(50);
   });
 });
@@ -151,7 +151,7 @@ describe('tickCombat – cooldown', () => {
       towers: [makeTower('t1', 0, 0, 'archer', 0.5)], // cooldown still active
       enemies: [makeGoblin('e1', 0)],
     });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next.enemies[0].hp).toBe(ENEMY_DEFS.goblin.hp); // no damage
   });
 
@@ -160,7 +160,7 @@ describe('tickCombat – cooldown', () => {
       towers: [makeTower('t1', 0, 0, 'archer', 0.5)],
       enemies: [makeGoblin('e1', 0)],
     });
-    const next = tickCombat(state, MINI_PATH, 0.1);
+    const next = tickCombat(state, MINI_PATH, 0.1, 1000);
     const updatedTower = next.towers.find((t) => t.id === 't1')!;
     expect(updatedTower.cooldownRemaining).toBeCloseTo(0.4);
   });
@@ -171,7 +171,7 @@ describe('tickCombat – cooldown', () => {
       towers: [makeTower('t1', 0, 0, 'archer', 0)],
       enemies: [makeGoblin('e1', 0)],
     });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     const updatedTower = next.towers.find((t) => t.id === 't1')!;
     // After firing, cooldown resets to 1/fireRate = 1/1.5 ≈ 0.667
     expect(updatedTower.cooldownRemaining).toBeCloseTo(1 / TOWER_DEFS.archer.fireRate);
@@ -184,7 +184,7 @@ describe('tickCombat – cooldown', () => {
       towers: [makeTower('t1', 0, 0, 'archer', -10)], // way overdue
       enemies: [makeGoblin('e1', 0)],
     });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     // Still only one shot worth of damage
     expect(next.enemies[0].hp).toBe(ENEMY_DEFS.goblin.hp - TOWER_DEFS.archer.damage);
   });
@@ -208,7 +208,7 @@ describe('tickCombat – multi-tower scenario', () => {
       ],
       enemies,
     });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next.enemies).toHaveLength(0);
     expect(next.gold).toBe(ENEMY_DEFS.goblin.reward * 2);
   });
@@ -224,7 +224,7 @@ describe('tickCombat – multi-tower scenario', () => {
       ],
       enemies: [tinyGoblin],
     });
-    const next = tickCombat(state, MINI_PATH, 0.016);
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(next.enemies).toHaveLength(0);
     // Gold should be awarded exactly once (not twice)
     expect(next.gold).toBe(ENEMY_DEFS.goblin.reward);
@@ -239,9 +239,52 @@ describe('tickCombat – immutability', () => {
     const state = combatState({ towers: [tower], enemies: [goblin] });
     const originalEnemies = state.enemies;
     const originalTowers = state.towers;
-    tickCombat(state, MINI_PATH, 0.016);
+    tickCombat(state, MINI_PATH, 0.016, 1000);
     expect(state.enemies).toBe(originalEnemies);
     expect(state.towers).toBe(originalTowers);
     expect(goblin.hp).toBe(ENEMY_DEFS.goblin.hp);
+  });
+});
+
+// ------------------------------------------------------------------ VFX timestamps
+describe('tickCombat – VFX timestamps', () => {
+  it('sets lastFiredAt on a tower that fires', () => {
+    const state = combatState({
+      towers: [makeTower('t1', 0, 0, 'archer', 0)],
+      enemies: [makeGoblin('e1', 0)],
+    });
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
+    const t = next.towers.find((t) => t.id === 't1')!;
+    expect(t.lastFiredAt).toBe(1000);
+  });
+
+  it('sets lastHitAt on a damaged-but-alive enemy', () => {
+    const state = combatState({
+      towers: [makeTower('t1', 0, 0, 'archer', 0)],
+      enemies: [makeGoblin('e1', 0)],
+    });
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
+    expect(next.enemies).toHaveLength(1);
+    expect(next.enemies[0].lastHitAt).toBe(1000);
+  });
+
+  it('preserves prior lastFiredAt when tower is in cooldown', () => {
+    const tower: TowerInstance = { id: 't1', defId: 'archer', x: 0, y: 0, cooldownRemaining: 0.5, lastFiredAt: 500 };
+    const state = combatState({
+      towers: [tower],
+      enemies: [makeGoblin('e1', 0)],
+    });
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
+    const updated = next.towers.find((t) => t.id === 't1')!;
+    expect(updated.lastFiredAt).toBe(500);
+  });
+
+  it('damage numbers are unchanged after adding nowMs parameter', () => {
+    const state = combatState({
+      towers: [makeTower('t1', 0, 0, 'archer', 0)],
+      enemies: [makeGoblin('e1', 0)],
+    });
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
+    expect(next.enemies[0].hp).toBe(ENEMY_DEFS.goblin.hp - TOWER_DEFS.archer.damage);
   });
 });

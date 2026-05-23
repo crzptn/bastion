@@ -55,6 +55,7 @@ export function useGameSession(): GameSession {
             tickEnemies(tickWaves(s, dt), STARTER_MAP.path, dt),
             STARTER_MAP.path,
             dt,
+            ts,
           );
         });
       }
