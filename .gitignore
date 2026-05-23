@@ -26,7 +26,8 @@ web/dist/*
 
 # IDE / OS
 .idea/
-.vscode/
+.vscode/*
+!.vscode/mcp.json
 *.swp
 *~
 .DS_Store

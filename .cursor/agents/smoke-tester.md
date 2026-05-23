@@ -60,6 +60,22 @@ For each entry in `smoke_endpoints` (or derived from acceptance criteria) — **
 - Compare to `expect`
 - **Do not pass** if any required route was not hit live
 
+### 4b. Browser smoke (web changes only)
+
+Skip unless the diff touches files under `web/`. Otherwise, exercise the live UI via the Playwright MCP server (registered in `.cursor/mcp.json` — Cursor auto-exposes its tools to this agent):
+
+1. Confirm a server is reachable. Prefer the Vite dev server on `:5173` if `bun run dev` is running; otherwise the production same-origin SPA on `:8080`.
+2. Navigate to the changed route (`/`, `/play`, etc.). Default to `/` if no route is implied by the diff.
+3. Take a DOM snapshot and assert the expected route-level element is present (heading text, route container, expected nav state).
+4. For canvas-bearing pages (e.g. `/play`): take a screenshot and confirm the canvas is non-empty (a blank canvas is a FAIL).
+5. Read console messages and treat any `error`-level entry as a FAIL.
+6. Close the browser session.
+7. Record each step in the report under a **Browser Smoke** section: route, snapshot status, screenshot path (if any), console-error count.
+
+Any FAIL or blank-canvas result → emit `HANDOFF:FIX`.
+
+**CI asymmetry (important):** Playwright MCP is **local-only**. CI (issue #23) does not run MCP servers — it keeps doing `make lint`, `go test`, web `lint` + `test` + `build`. Browser smoke is an additional layer the local pipeline catches that CI cannot. Do not assume a green CI means the UI works.
+
 ### 5. Decide pass or fail
 
 **Pass** only if build succeeds, tests pass, and all required endpoints behave as expected.
