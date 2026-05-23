@@ -42,6 +42,24 @@ git diff --staged
 git log --oneline -5
 ```
 
+## 0. CI gate (required — run first)
+
+Run:
+
+```bash
+gh pr checks <pr_number>
+```
+
+**Do not proceed past this step until you have evaluated the result.**
+
+- **If any check is pending** — emit the message below and stop. Do not read the diff. Do not emit `HANDOFF:APPROVED`.
+
+  > CI checks are still running for this PR. Re-invoke the reviewer once all checks have settled.
+
+- **If any check has failed** — do not read the diff. Immediately emit `HANDOFF:FIX` with `failure_summary` citing the failing check name and the direct link to the Actions run. Invoke the **coder** agent with that handoff.
+
+- **Only if all checks are green** — proceed to the Bastion conventions check and review checklist below.
+
 ## Bastion conventions (required)
 
 Read repo-root **AGENTS.md** first, then `.cursor/agents/_bastion-conventions.md`. **Blocking** if the diff violates architecture rules or smoke-tester skipped mandatory E2E for API changes.
