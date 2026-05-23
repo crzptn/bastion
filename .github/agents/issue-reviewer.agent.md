@@ -54,7 +54,11 @@ gh pr diff <pr_number>
 gh pr checks <pr_number>
 ```
 
-Note the CI status in your report. Do not attempt to fix anything.
+**Do not proceed past this step until you have evaluated the CI result.**
+
+- **If any check is pending** — stop immediately. Do not read the diff. Do not write a review report. Instruct the user to re-invoke the reviewer once all checks have finished.
+- **If any check has failed** — do not read the diff. Select **Issues found — hand off to Coder** immediately. In your message, include the name of each failing check and the direct link to the failing Actions run.
+- **Only if all checks are green** — proceed to step 3.
 
 ### 3. Review checklist
 
