@@ -41,7 +41,7 @@ import { PerspectiveCamera, OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { EnemyInstance, Grid, Path, TowerInstance } from '../types';
-import { enemyPosition } from '../sim/enemies';
+import { enemyHeading, enemyPosition } from '../sim/enemies';
 import { THEME } from './theme';
 import { ENEMY_MESHES, PLACEHOLDER_ENEMY_MESH } from './meshes/enemies';
 import { PLACEHOLDER_TOWER_MESH, TOWER_MESHES } from './meshes/towers';
@@ -390,9 +390,13 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
         const [wx, , wz] = gridToWorld(pos.x, pos.y);
         const EnemyMesh = ENEMY_MESHES[enemy.defId] ?? PLACEHOLDER_ENEMY_MESH;
         const enemyY = tileTopY('path') + ENEMY_LIFT;
+        // Heading: sim dx → world.x, sim dy → world.z; atan2(x, z) aligns
+        // the mesh +Z forward with the path direction (r3f convention).
+        const h = enemyHeading(enemy, path);
+        const heading = Math.atan2(h.dx, h.dy);
         return (
           <Fragment key={enemy.id}>
-            <EnemyMesh position={[wx, enemyY, wz]} />
+            <EnemyMesh position={[wx, enemyY, wz]} heading={heading} id={enemy.id} />
             <HitBurst lastHitAt={enemy.lastHitAt} position={[wx, enemyY, wz]} />
           </Fragment>
         );
