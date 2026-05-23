@@ -13,3 +13,4 @@ When an entry below appears 2+ times, promote it to `AGENTS.md` (or the relevant
 - 2026-05-23 #35: Pure sim modules (no React imports) can be verified architecture-clean at review time simply by checking the import list at the top of the file — no tooling needed.
 - 2026-05-23 #46: Pure-sim modules (no React/DOM) are the right pattern for game logic — tickWaves returning same-reference no-ops (like tickEnemies/tickCombat) keeps React setState diffing cheap and unit tests dependency-free.
 - 2026-05-23 #47: Frontend-only PRs with no new HTTP routes still need E2E evidence (browser play-through), but curl evidence is not required — distinguishing this earlier would have saved a re-run prompt about missing curl in HANDOFF.
+- 2026-05-23 #51: Source-position tests (indexOf ordering) are an effective zero-dependency pattern for enforcing module-scope allocation ordering in frontend files where lint rules would need custom plugins.
