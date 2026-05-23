@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Grid, Path, TowerInstance } from '../types';
+import type { EnemyInstance, Grid, Path, TowerInstance } from '../types';
+import { enemyPosition } from '../sim/enemies';
 import { THEME } from './theme';
 
 type Props = {
   map: { grid: Grid; path: Path };
   towers?: TowerInstance[];
+  enemies?: EnemyInstance[];
   onCellClick?: (pos: { x: number; y: number }) => void;
 };
 
@@ -31,7 +33,7 @@ function buildPathCellSet(path: Path): Set<string> {
   return set;
 }
 
-export function GameCanvas({ map, towers = [], onCellClick }: Props) {
+export function GameCanvas({ map, towers = [], enemies = [], onCellClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const logicalSize = useRef({ w: 0, h: 0 });
@@ -84,6 +86,16 @@ export function GameCanvas({ map, towers = [], onCellClick }: Props) {
       ctx.fillRect(tower.x * cellSize, tower.y * cellSize, cellSize, cellSize);
     }
 
+    for (const enemy of enemies) {
+      const pos = enemyPosition(enemy, map.path);
+      const cx = (pos.x + 0.5) * cellSize;
+      const cy = (pos.y + 0.5) * cellSize;
+      ctx.fillStyle = THEME.enemy;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cellSize * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     if (hovered) {
       const cell = grid.cells.find((c) => c.x === hovered.x && c.y === hovered.y);
       if (cell?.buildable) {
@@ -91,7 +103,7 @@ export function GameCanvas({ map, towers = [], onCellClick }: Props) {
         ctx.fillRect(hovered.x * cellSize, hovered.y * cellSize, cellSize, cellSize);
       }
     }
-  }, [map, towers, hovered]);
+  }, [map, towers, enemies, hovered]);
 
   useEffect(() => {
     const container = containerRef.current;
