@@ -17,7 +17,8 @@
  * All color tokens come from THEME — no hardcoded hex literals in this file.
  */
 
-import React from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { THEME } from '../theme';
 
@@ -41,36 +42,87 @@ const archerRoofMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Col
 const placeholderTowerGeometry = new THREE.BoxGeometry(0.9, 0.6, 0.9);
 const placeholderTowerMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(THEME.placeholder) });
 
+const flashGeometry = new THREE.SphereGeometry(0.55, 8, 8);
+const flashMaterialTemplate = new THREE.MeshBasicMaterial({
+  color: new THREE.Color(2.0, 1.8, 0.8),
+  transparent: true,
+  blending: THREE.AdditiveBlending,
+  depthWrite: false,
+});
+
+const FLASH_MS = 150;
+
+function useFlashFrame(
+  meshRef: React.RefObject<THREE.Mesh | null>,
+  mat: THREE.MeshBasicMaterial,
+  lastFiredAtRef: React.RefObject<number | undefined>,
+) {
+  useEffect(() => () => { mat.dispose(); }, [mat]);
+
+  useFrame(() => {
+    const lfa = lastFiredAtRef.current;
+    if (!meshRef.current) return;
+    if (lfa === undefined) {
+      meshRef.current.visible = false;
+      return;
+    }
+    const t = (performance.now() - lfa) / FLASH_MS;
+    if (t >= 1) {
+      meshRef.current.visible = false;
+    } else {
+      meshRef.current.visible = true;
+      mat.opacity = 1 - t;
+    }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Prop type shared by all tower mesh components
 // ---------------------------------------------------------------------------
 export type TowerMeshProps = {
   position: [number, number, number];
+  lastFiredAt?: number;
 };
 
 // ---------------------------------------------------------------------------
 // Cannon — wide squat cylinder base + box turret on top
 // ---------------------------------------------------------------------------
-const CannonMesh: React.FC<TowerMeshProps> = ({ position }) => (
-  <group position={position}>
-    {/* Base cylinder, centred at y=0 relative to group */}
-    <mesh geometry={cannonBaseGeometry} material={cannonBaseMaterial} position={[0, 0.175, 0]} castShadow />
-    {/* Turret box on top of base */}
-    <mesh geometry={cannonTurretGeometry} material={cannonTurretMaterial} position={[0, 0.49, 0]} castShadow />
-  </group>
-);
+const CannonMesh: React.FC<TowerMeshProps> = ({ position, lastFiredAt }) => {
+  const mat = useMemo(() => flashMaterialTemplate.clone(), []);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const lastFiredAtRef = useRef(lastFiredAt);
+  lastFiredAtRef.current = lastFiredAt;
+
+  useFlashFrame(meshRef, mat, lastFiredAtRef);
+
+  return (
+    <group position={position}>
+      <mesh geometry={cannonBaseGeometry} material={cannonBaseMaterial} position={[0, 0.175, 0]} castShadow />
+      <mesh geometry={cannonTurretGeometry} material={cannonTurretMaterial} position={[0, 0.49, 0]} castShadow />
+      <mesh ref={meshRef} geometry={flashGeometry} material={mat} position={[0, 0.35, 0]} visible={false} />
+    </group>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Archer — cylinder tower body + cone roof
 // ---------------------------------------------------------------------------
-const ArcherMesh: React.FC<TowerMeshProps> = ({ position }) => (
-  <group position={position}>
-    {/* Tower body */}
-    <mesh geometry={archerBaseGeometry} material={archerBaseMaterial} position={[0, 0.25, 0]} castShadow />
-    {/* Cone roof sitting on top */}
-    <mesh geometry={archerRoofGeometry} material={archerRoofMaterial} position={[0, 0.7, 0]} castShadow />
-  </group>
-);
+const ArcherMesh: React.FC<TowerMeshProps> = ({ position, lastFiredAt }) => {
+  const mat = useMemo(() => flashMaterialTemplate.clone(), []);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const lastFiredAtRef = useRef(lastFiredAt);
+  lastFiredAtRef.current = lastFiredAt;
+
+  useFlashFrame(meshRef, mat, lastFiredAtRef);
+
+  return (
+    <group position={position}>
+      <mesh geometry={archerBaseGeometry} material={archerBaseMaterial} position={[0, 0.25, 0]} castShadow />
+      <mesh geometry={archerRoofGeometry} material={archerRoofMaterial} position={[0, 0.7, 0]} castShadow />
+      <mesh ref={meshRef} geometry={flashGeometry} material={mat} position={[0, 0.45, 0]} visible={false} />
+    </group>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Placeholder — magenta box rendered for any unknown defId

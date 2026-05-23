@@ -1,9 +1,9 @@
 ---
 name: IssueRedTeam
 description: Walks every assumption in HANDOFF:PLAN and tries to refute it by reading the repo. Upholds the plan (handing off to Coder) or refutes it (escalating to user). Read-only — no code edits, no commits.
-model: Claude Haiku 4.5 (copilot)
+model: Claude Sonnet 4.6 (copilot)
 tools: ['search/codebase', 'search/textSearch', 'search/fileSearch', 'search/listDirectory', 'read/readFile', 'execute/runInTerminal', 'execute/getTerminalOutput']
-user-invocable: false
+user-invocable: true
 handoffs:
   - label: Plan upheld — hand off to Coder
     agent: IssueCoder
