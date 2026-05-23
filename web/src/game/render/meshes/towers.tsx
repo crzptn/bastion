@@ -17,7 +17,7 @@
  * All color tokens come from THEME — no hardcoded hex literals in this file.
  */
 
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { THEME } from '../theme';
@@ -52,6 +52,30 @@ const flashMaterialTemplate = new THREE.MeshBasicMaterial({
 
 const FLASH_MS = 150;
 
+function useFlashFrame(
+  meshRef: React.RefObject<THREE.Mesh | null>,
+  mat: THREE.MeshBasicMaterial,
+  lastFiredAtRef: React.RefObject<number | undefined>,
+) {
+  useEffect(() => () => { mat.dispose(); }, [mat]);
+
+  useFrame(() => {
+    const lfa = lastFiredAtRef.current;
+    if (!meshRef.current) return;
+    if (lfa === undefined) {
+      meshRef.current.visible = false;
+      return;
+    }
+    const t = (performance.now() - lfa) / FLASH_MS;
+    if (t >= 1) {
+      meshRef.current.visible = false;
+    } else {
+      meshRef.current.visible = true;
+      mat.opacity = 1 - t;
+    }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Prop type shared by all tower mesh components
 // ---------------------------------------------------------------------------
@@ -69,21 +93,7 @@ const CannonMesh: React.FC<TowerMeshProps> = ({ position, lastFiredAt }) => {
   const lastFiredAtRef = useRef(lastFiredAt);
   lastFiredAtRef.current = lastFiredAt;
 
-  useFrame(() => {
-    const lfa = lastFiredAtRef.current;
-    if (!meshRef.current) return;
-    if (lfa === undefined) {
-      meshRef.current.visible = false;
-      return;
-    }
-    const t = (performance.now() - lfa) / FLASH_MS;
-    if (t >= 1) {
-      meshRef.current.visible = false;
-    } else {
-      meshRef.current.visible = true;
-      mat.opacity = 1 - t;
-    }
-  });
+  useFlashFrame(meshRef, mat, lastFiredAtRef);
 
   return (
     <group position={position}>
@@ -103,21 +113,7 @@ const ArcherMesh: React.FC<TowerMeshProps> = ({ position, lastFiredAt }) => {
   const lastFiredAtRef = useRef(lastFiredAt);
   lastFiredAtRef.current = lastFiredAt;
 
-  useFrame(() => {
-    const lfa = lastFiredAtRef.current;
-    if (!meshRef.current) return;
-    if (lfa === undefined) {
-      meshRef.current.visible = false;
-      return;
-    }
-    const t = (performance.now() - lfa) / FLASH_MS;
-    if (t >= 1) {
-      meshRef.current.visible = false;
-    } else {
-      meshRef.current.visible = true;
-      mat.opacity = 1 - t;
-    }
-  });
+  useFlashFrame(meshRef, mat, lastFiredAtRef);
 
   return (
     <group position={position}>

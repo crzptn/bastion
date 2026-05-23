@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -50,6 +50,8 @@ export function HitBurst({ position, lastHitAt }: HitBurstProps) {
     () => Array.from({ length: PARTICLE_COUNT }, () => particleMaterialTemplate.clone()),
     [],
   );
+
+  useEffect(() => () => { materials.forEach((m) => m.dispose()); }, [materials]);
 
   useFrame(() => {
     const group = groupRef.current;
