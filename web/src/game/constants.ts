@@ -29,11 +29,13 @@ export const ENEMY_DEFS: Record<string, EnemyDef> = {
   },
 };
 
-export const INITIAL_RUN_STATE: RunState = {
-  gold: 100,
-  baseHp: 20,
-  waveIndex: 0,
-  phase: 'prep',
-  towers: [],
-  enemies: [],
-};
+export function createInitialRunState(): RunState {
+  return {
+    gold: 100,
+    baseHp: 20,
+    waveIndex: 0,
+    phase: 'prep',
+    towers: [],
+    enemies: [],
+  };
+}

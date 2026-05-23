@@ -3,7 +3,7 @@ import type { Grid, Path } from '../types';
 const COLS = 20;
 const ROWS = 15;
 
-const PATH_WAYPOINTS: { x: number; y: number }[] = [
+const PATH_WAYPOINTS: readonly { x: number; y: number }[] = [
   { x: 0, y: 7 },
   { x: 4, y: 7 },
   { x: 4, y: 3 },

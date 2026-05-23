@@ -68,6 +68,10 @@ describe('distanceAlongPath', () => {
     const second = path.waypoints[1];
     expect(distanceAlongPath(path, second.x, second.y)).toBeGreaterThan(0);
   });
+
+  it('returns total path length for an off-path point', () => {
+    expect(distanceAlongPath(path, 15, 0)).toBeCloseTo(35);
+  });
 });
 
 describe('GamePhase', () => {

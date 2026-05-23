@@ -11,7 +11,7 @@ export type {
   WaveDef,
 } from './types';
 
-export { ENEMY_DEFS, INITIAL_RUN_STATE, TOWER_DEFS } from './constants';
+export { createInitialRunState, ENEMY_DEFS, TOWER_DEFS } from './constants';
 
 export { canPlaceTower, cellAt, distanceAlongPath } from './logic';
 
