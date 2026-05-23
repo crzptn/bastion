@@ -16,7 +16,12 @@ You are **read-only on source code**. You have no `Write` or `Edit` tools. The s
 - `gh pr checks <pr_number>`
 - `gh issue view <issue_number>`
 - `git log`, `git diff`, `git status` (read-only)
-- `echo "<line>" >> LEARNINGS.md` or PowerShell `Add-Content -Path LEARNINGS.md ...` — **only** for the Retrospective append; no other writes, no other paths
+- `echo "<line>" >> LEARNINGS.md` or PowerShell `Add-Content -Path LEARNINGS.md ...` — **only** for the Retrospective append (Step 5). See path rules below.
+- `git add LEARNINGS.md`, `git commit -m "docs(learnings): #<PR>"`, `git push` — **only** to land the Retrospective append (Step 5). No other staged paths permitted.
+
+**Path rules for LEARNINGS append (mandatory):**
+- Use the **bare relative path** `LEARNINGS.md` only. Never use an absolute path like `C:\Users\...\LEARNINGS.md` and never use backslashes — shells will create a junk file named after the entire mangled path string. If you find yourself typing a colon or a backslash in front of `LEARNINGS.md`, stop.
+- Run the command from the repo root (`git rev-parse --show-toplevel` should equal the current working directory). If it is not, `cd` there first.
 
 Do not run any other command.
 
@@ -79,9 +84,20 @@ Record this as the `spec_conformance` block in your HANDOFF output. Any `UNMET` 
 
 Classify: **blocking** | **suggestion** | **nit**.
 
-### 5. Retrospective — append to LEARNINGS.md (on CLEAN only)
+### 5. Retrospective — append + commit + push LEARNINGS.md (on CLEAN only)
 
-On CLEAN verdicts only, append one line to `LEARNINGS.md` via Bash **before** emitting `HANDOFF:APPROVED`:
+On CLEAN verdicts only, do the following **on the PR's task branch** (not main), **before** emitting `HANDOFF:APPROVED`. Every step is mandatory — an append without a commit + push is worthless because the line never reaches the merged history.
+
+**a. Confirm you are at the repo root on the task branch:**
+
+```bash
+cd "$(git rev-parse --show-toplevel)"
+git branch --show-current   # must be the PR's task branch, not main
+```
+
+If you are on main or detached HEAD, stop and surface to the user — do not commit anywhere.
+
+**b. Append one line to LEARNINGS.md using the bare relative path:**
 
 ```bash
 echo "- $(date +%Y-%m-%d) #<pr_number>: <one short sentence — what was surprising about this PR, or what would have prevented a re-run if it had been in AGENTS.md from the start>" >> LEARNINGS.md
@@ -93,7 +109,21 @@ Or on Windows PowerShell:
 Add-Content -Path LEARNINGS.md -Value "- $(Get-Date -Format yyyy-MM-dd) #<pr_number>: <text>" -Encoding utf8
 ```
 
-If nothing is worth recording, skip the append and note `(nothing to record)` in the `retrospective` field of `HANDOFF:APPROVED`. On BLOCKING / suggestion-only verdicts, skip the append entirely — wait until the PR is actually merge-ready.
+Forbidden: absolute paths, backslashes, anything that is not the literal string `LEARNINGS.md`. A file named `CUsersJCarlsson...LEARNINGS.md` in the repo root is the signature of this bug — if you see one, delete it and redo this step correctly.
+
+**c. Commit and push the append on the task branch:**
+
+```bash
+git add LEARNINGS.md
+git commit -m "docs(learnings): #<pr_number> retrospective"
+git push
+```
+
+Only `LEARNINGS.md` may be staged. If `git status` shows other modified files, stop and surface — you are on the wrong branch or something else has written to the tree.
+
+**d. Surface the exact appended line in the `retrospective` field of `HANDOFF:APPROVED`.**
+
+If nothing is worth recording, skip steps a–c entirely and note `(nothing to record)` in the `retrospective` field. On BLOCKING / suggestion-only verdicts, skip the append entirely — wait until the PR is actually merge-ready.
 
 The compound value of `LEARNINGS.md` is the entire reason this step exists; if you find the same line twice, that is the signal to promote it to `AGENTS.md`.
 

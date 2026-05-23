@@ -20,7 +20,13 @@ The terminal is available **exclusively** for these commands:
 - `gh pr diff <pr_number>`
 - `gh pr checks <pr_number>`
 - `gh issue view <issue_number>`
-- `Add-Content -Path LEARNINGS.md ...` — **only** to append the Retrospective line; no other writes, no other paths
+- `git status`, `git diff`, `git log`, `git branch --show-current` (read-only)
+- `Add-Content -Path LEARNINGS.md ...` — **only** to append the Retrospective line (Step 5). See path rules below.
+- `git add LEARNINGS.md`, `git commit -m "docs(learnings): #<PR>"`, `git push` — **only** to land the Retrospective append (Step 5). No other staged paths permitted.
+
+**Path rules for LEARNINGS append (mandatory):**
+- Use the **bare relative path** `LEARNINGS.md` only. Never use an absolute path like `C:\Users\...\LEARNINGS.md` and never use backslashes — PowerShell will create a junk file named after the entire mangled path string. If you find yourself typing a colon or a backslash in front of `LEARNINGS.md`, stop.
+- Run the command from the repo root. If `git rev-parse --show-toplevel` does not equal the current directory, `cd` there first.
 
 Do not run any other command.
 
@@ -152,15 +158,40 @@ Run in priority order. Assign every finding a severity before moving on.
 ### ✅ Passed
 - <what looked good>
 
-### 🔁 Retrospective
+### 🔁 Retrospective — append + commit + push (CLEAN only)
 
-On CLEAN verdicts only, append one line to `LEARNINGS.md` via the terminal **before** posting the final report:
+On CLEAN verdicts only, do the following **on the PR's task branch** (not main), **before** posting the final report. Every step is mandatory — an append without a commit + push is worthless because the line never reaches the merged history.
+
+**a. Confirm you are at the repo root on the task branch:**
+
+```powershell
+Set-Location (git rev-parse --show-toplevel)
+git branch --show-current   # must be the PR's task branch, not main
+```
+
+If on main or detached HEAD, stop and surface — do not commit anywhere.
+
+**b. Append one line via the bare relative path:**
 
 ```powershell
 Add-Content -Path LEARNINGS.md -Value "- $(Get-Date -Format yyyy-MM-dd) #<pr_number>: <one short sentence — what was surprising about this PR, or what would have prevented a re-run if it had been in AGENTS.md from the start>" -Encoding utf8
 ```
 
-Then surface the exact line you appended in this section of the report so the user sees it without opening the file. If nothing is worth recording, skip the append and write `(nothing to record)` here instead. On BLOCKING / IMPORTANT-ONLY verdicts, skip the append entirely — wait until the PR is actually merge-ready. The compound value of `LEARNINGS.md` is the entire reason this step exists; if you find the same line twice, that is the signal to promote it to `AGENTS.md`.
+Forbidden: absolute paths, backslashes, anything that is not the literal string `LEARNINGS.md`. A file named `CUsersJCarlsson...LEARNINGS.md` in the repo root is the signature of this bug — if you see one, surface it and stop.
+
+**c. Commit and push on the task branch:**
+
+```powershell
+git add LEARNINGS.md
+git commit -m "docs(learnings): #<pr_number> retrospective"
+git push
+```
+
+Only `LEARNINGS.md` may be staged. If `git status` shows other modified files, stop — you are on the wrong branch or something else has written to the tree.
+
+**d. Surface the exact appended line in this Retrospective section of the report.**
+
+If nothing is worth recording, skip steps a–c entirely and write `(nothing to record)` here instead. On BLOCKING / IMPORTANT-ONLY verdicts, skip the append entirely — wait until the PR is actually merge-ready. The compound value of `LEARNINGS.md` is the entire reason this step exists; if you find the same line twice, that is the signal to promote it to `AGENTS.md`.
 ```
 
 Every finding must include: file path + line number from the diff, a description of the problem, and a specific suggestion for how to fix it.

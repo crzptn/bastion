@@ -170,13 +170,16 @@ next_agent: none
 
 ### 0. Append retrospective to LEARNINGS.md (required on approval, before commit)
 
-Before staging anything, append one line to `LEARNINGS.md` under the `## Entries` section:
+Before staging anything, **change to the repo root** and append one line to `LEARNINGS.md` using the bare relative path:
 
 ```powershell
+Set-Location (git rev-parse --show-toplevel)
 Add-Content -Path LEARNINGS.md -Value "- $(Get-Date -Format yyyy-MM-dd) #<pr_number>: <retrospective text>" -Encoding utf8
 ```
 
-If the retrospective is `nothing to record`, skip the append. The `LEARNINGS.md` change goes in the same commit as the rest of the issue work — do not split it into its own commit. The compound value of this file is the entire reason this step exists; if you find the same line being appended twice, that is the signal to promote the lesson to `AGENTS.md`.
+**Path rules (mandatory):** use the literal string `LEARNINGS.md` only. Never use an absolute path like `C:\Users\...\LEARNINGS.md` and never use backslashes — PowerShell will create a junk file named after the entire mangled path string. If you see a file named `CUsersJCarlsson...LEARNINGS.md` in the repo root, that is this bug — delete it and redo the append correctly.
+
+If the retrospective is `nothing to record`, skip the append. The `LEARNINGS.md` change goes in the same commit as the rest of the issue work in step 1 — do not split it into its own commit. The compound value of this file is the entire reason this step exists; if you find the same line being appended twice, that is the signal to promote the lesson to `AGENTS.md`.
 
 ### 1. Commit (required on approval)
 

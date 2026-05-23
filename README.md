@@ -44,7 +44,7 @@ This is my daily driver. Copilot Chat picks up the agents from `.github/agents/*
 1. **Groom the backlog** — `@IssueCreator break down the lobby-matchmaking feature into issues`. It runs an ambiguity gate (lists every unclear point or writes NONE), waits for answers, then writes labels, milestones, and issues with binary acceptance criteria via `gh`. **This is the real planning gate** — the AC list is the contract everything downstream is measured against.
 2. **Plan** — `@IssuePlanner issues: 42`. Reads the issue, scans `LEARNINGS.md` for past lessons that apply, greps the repo, asks clarifying questions mid-flight if anything's ambiguous, writes a plan to `/memories/session/plan.md`, creates the branch, and auto-hands off to the Coder. There is no terminal "approve plan" gate by design — if you need one, you wanted the ambiguity caught at issue-creation time.
 3. **Auto-handoff to Coder** — implements the plan (tests-first for any pure-domain code under `internal/<subsystem>/`), runs `make fmt` / `make lint` / `bun run lint`, commits, opens a PR.
-4. **Auto-handoff to SmokeTest** — builds, runs unit tests, boots the server, curls the new endpoints, reports.
+4. **Auto-handoff to SmokeTest** — builds, runs unit tests, boots the server, curls the new endpoints. For any change under `web/`, also drives a real browser via the [Playwright MCP](https://github.com/microsoft/playwright-mcp) server (registered in `.mcp.json`, `.cursor/mcp.json`, `.vscode/mcp.json`) to navigate, snapshot, screenshot canvas pages, and check console errors. **Browser smoke is local-only** — CI does curl + unit; the MCP layer is what the local pipeline catches on top.
 5. **Auto-handoff to Reviewer** — waits for CI green, does an explicit spec-conformance pass (cites a `file:line` for every acceptance-criterion checkbox or marks it UNMET), runs the review checklist, and appends a one-line **Retrospective** to `LEARNINGS.md` so each PR compounds into project memory. Bounces back to Coder on findings; otherwise I merge.
 
 Models used (set per-agent in the frontmatter):
@@ -94,6 +94,7 @@ sequenceDiagram
     C->>C: edit, fmt, lint, commit, gh pr create
     C->>S: handoff (PR open)
     S->>S: build, test, curl endpoints
+    S->>S: browser smoke via Playwright MCP (web/ changes only)
     alt tests fail
         S->>C: failure report
         C->>S: re-implement
