@@ -26,13 +26,15 @@ import * as THREE from 'three';
 import type { EnemyInstance, Grid, Path, TowerInstance } from '../types';
 import { enemyPosition } from '../sim/enemies';
 import { THEME } from './theme';
+import { ENEMY_MESHES, PLACEHOLDER_ENEMY_MESH } from './meshes/enemies';
+import { PLACEHOLDER_TOWER_MESH, TOWER_MESHES } from './meshes/towers';
 
 // ---------------------------------------------------------------------------
 // Shared geometry / material instances (module-level to avoid re-allocation)
+// Per-def tower and enemy geometries/materials live in meshes/towers.ts and
+// meshes/enemies.ts respectively.
 // ---------------------------------------------------------------------------
 const tileGeometry = new THREE.PlaneGeometry(1, 1);
-const towerGeometry = new THREE.BoxGeometry(0.9, 0.6, 0.9);
-const enemySphereGeometry = new THREE.SphereGeometry(0.3, 16, 16);
 const hoverGeometry = new THREE.PlaneGeometry(1, 1);
 
 // ---------------------------------------------------------------------------
@@ -56,8 +58,6 @@ function parseRgba(rgba: string): { color: THREE.Color; opacity: number } {
 const THEME_BG = hexToThreeColor(THEME.bg);
 const THEME_PATH = hexToThreeColor(THEME.path);
 const THEME_BUILDABLE = hexToThreeColor(THEME.buildable);
-const THEME_TOWER = parseRgba(THEME.towerGhost);
-const THEME_ENEMY = hexToThreeColor(THEME.enemy);
 const THEME_HOVER_PARSED = parseRgba(THEME.hover);
 
 // ---------------------------------------------------------------------------
@@ -190,6 +190,11 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
         far={100}
       />
 
+      {/* Minimal lighting for MeshStandardMaterial on per-def meshes (#43).
+           Lighting will be refined in issue #44. */}
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[5, 10, 5]} intensity={0.8} />
+
       {/* Tiles */}
       {tileMeshes.map(({ key, x, y, z, color }) => (
         <mesh
@@ -202,29 +207,21 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
         </mesh>
       ))}
 
-      {/* Towers — box placeholders */}
+      {/* Towers — per-def mesh; tower mesh "front" faces -z (top-down camera reference).
+           Falls back to PLACEHOLDER_TOWER_MESH for unknown defIds (magenta, no throw). */}
       {towers.map((tower) => {
         const [wx, , wz] = gridToWorld(tower.x, tower.y);
-        return (
-          <mesh key={tower.id} geometry={towerGeometry} position={[wx, 0.3, wz]}>
-            <meshBasicMaterial
-              color={THEME_TOWER.color}
-              transparent
-              opacity={THEME_TOWER.opacity}
-            />
-          </mesh>
-        );
+        const TowerMesh = TOWER_MESHES[tower.defId] ?? PLACEHOLDER_TOWER_MESH;
+        return <TowerMesh key={tower.id} position={[wx, 0.3, wz]} />;
       })}
 
-      {/* Enemies — sphere placeholders */}
+      {/* Enemies — per-def mesh via ENEMY_MESHES registry.
+           Falls back to PLACEHOLDER_ENEMY_MESH for unknown defIds (magenta, no throw). */}
       {enemies.map((enemy) => {
         const pos = enemyPosition(enemy, path);
         const [wx, , wz] = gridToWorld(pos.x, pos.y);
-        return (
-          <mesh key={enemy.id} geometry={enemySphereGeometry} position={[wx, 0.3, wz]}>
-            <meshBasicMaterial color={THEME_ENEMY} />
-          </mesh>
-        );
+        const EnemyMesh = ENEMY_MESHES[enemy.defId] ?? PLACEHOLDER_ENEMY_MESH;
+        return <EnemyMesh key={enemy.id} position={[wx, 0.3, wz]} />;
       })}
 
       {/* Hover highlight — only on buildable cells */}
