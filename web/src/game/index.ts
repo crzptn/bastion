@@ -19,5 +19,7 @@ export { STARTER_MAP } from './maps/starter';
 
 export { spawnWave, tickEnemies, enemyPosition } from './sim/enemies';
 
+export { tickCombat } from './sim/combat';
+
 export { pathLength, positionAtDistance } from './sim/path';
 

@@ -47,7 +47,7 @@ describe('canPlaceTower', () => {
 
   it('returns false when a tower already occupies the cell', () => {
     const occupied: TowerInstance[] = [
-      { id: 't1', defId: 'cannon', x: buildableCell.x, y: buildableCell.y },
+      { id: 't1', defId: 'cannon', x: buildableCell.x, y: buildableCell.y, cooldownRemaining: 0 },
     ];
     expect(canPlaceTower(grid, occupied, buildableCell.x, buildableCell.y)).toBe(false);
   });
@@ -93,6 +93,7 @@ describe('placeTower', () => {
       defId: archerDef.id,
       x: buildableCell.x,
       y: buildableCell.y,
+      cooldownRemaining: 0,
     });
   });
 
@@ -125,7 +126,7 @@ describe('placeTower', () => {
   it('rejects when the cell is already occupied', () => {
     const state: RunState = {
       ...createInitialRunState(),
-      towers: [{ id: 'existing', defId: 'cannon', x: buildableCell.x, y: buildableCell.y }],
+      towers: [{ id: 'existing', defId: 'cannon', x: buildableCell.x, y: buildableCell.y, cooldownRemaining: 0 }],
     };
     const { state: next, placed } = placeTower(state, archerDef, buildableCell.x, buildableCell.y, grid);
     expect(placed).toBe(false);

@@ -34,6 +34,7 @@ export function placeTower(
     defId: def.id,
     x,
     y,
+    cooldownRemaining: 0,
   };
 
   return {
