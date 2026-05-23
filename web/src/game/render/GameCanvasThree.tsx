@@ -17,11 +17,18 @@
  * Enemy and tower rendering is driven by React-state updates (same as Canvas2D parity).
  * A future perf upgrade would move enemy positions to useFrame with a ref-based store
  * to avoid per-frame React reconciler overhead (#43+).
+ *
+ * Camera note
+ * -----------
+ * We use a tilted PerspectiveCamera (fov=45) so the 3D meshes read as 3D.
+ * CameraRig computes the camera distance to fit the entire grid in the viewport,
+ * using fitDistance(). OrbitControls provides drag-rotate + scroll-zoom with
+ * pan disabled and polar/distance clamped.
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrthographicCamera } from '@react-three/drei';
+import { PerspectiveCamera, OrbitControls } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import type { EnemyInstance, Grid, Path, TowerInstance } from '../types';
@@ -61,7 +68,7 @@ const THEME_HOVER_PARSED = parseRgba(THEME.hover);
 
 // ---------------------------------------------------------------------------
 // Tile materials — module-scope MeshStandardMaterial instances, one per tile type.
-// Using MeshStandardMaterial so tiles receive lighting and shadow (AC3).
+// Using MeshStandardMaterial so tiles receive lighting and shadow.
 // ---------------------------------------------------------------------------
 const TILE_PATH_MATERIAL = new THREE.MeshStandardMaterial({
   color: hexToThreeColor(THEME.path),
@@ -72,6 +79,29 @@ const TILE_BUILDABLE_MATERIAL = new THREE.MeshStandardMaterial({
 const TILE_BG_MATERIAL = new THREE.MeshStandardMaterial({
   color: hexToThreeColor(THEME.bg),
 });
+
+// ---------------------------------------------------------------------------
+// fitDistance — pure helper (exported for unit testing).
+//
+// Computes the camera distance from the grid centre so that the entire grid
+// (cols × rows) fills the viewport without clipping, accounting for aspect.
+//
+//   vertical visible half = d * tan(fov/2)
+//   horizontal visible half = d * tan(fov/2) * aspect
+//
+// We need both to cover the respective half-extents:
+//   d >= (rows/2)  / tan(fov/2)          — vertical constraint
+//   d >= (cols/2)  / (tan(fov/2) * aspect) — horizontal constraint
+//
+// Add 10 % padding so tiles are not flush against the viewport edge.
+// ---------------------------------------------------------------------------
+export function fitDistance(cols: number, rows: number, fovDeg: number, aspect: number): number {
+  const halfFov = (fovDeg / 2) * (Math.PI / 180);
+  const tanHalfFov = Math.tan(halfFov);
+  const verticalDist = rows / 2 / tanHalfFov;
+  const horizontalDist = cols / 2 / (tanHalfFov * aspect);
+  return Math.max(verticalDist, horizontalDist) * 1.1;
+}
 
 // ---------------------------------------------------------------------------
 // Props — identical shape to the deleted GameCanvas
@@ -128,20 +158,33 @@ function makeHelpers(cols: number, rows: number) {
 }
 
 // ---------------------------------------------------------------------------
-// CameraRig — adjusts OrthographicCamera zoom to fit the grid in the container
+// CameraRig — updates PerspectiveCamera position on container/grid size change.
+//
+// The camera is positioned at a tilted angle looking at the grid centre [0,0,0].
+// Default tilt offset: x=0, y=1, z=0.7 (normalized), so roughly 55 ° above
+// the ground — within the clamped polar range (π/6 … π/3).
+// On each resize or grid change we recompute the fit distance and scale the
+// offset vector accordingly.
 // ---------------------------------------------------------------------------
 interface CameraRigProps {
   cols: number;
   rows: number;
 }
 
+// Default look direction offset (unnormalized) — gives the initial tilt.
+// y and z together produce the tilted-but-not-straight-down angle.
+const DEFAULT_OFFSET = new THREE.Vector3(0, 1.4, 1.0).normalize();
+const DEFAULT_FOV = 45;
+
 function CameraRig({ cols, rows }: CameraRigProps) {
   const { camera, size } = useThree();
 
   useEffect(() => {
-    if (!(camera instanceof THREE.OrthographicCamera)) return;
-    const zoom = Math.min(size.width / cols, size.height / rows);
-    camera.zoom = zoom;
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    const aspect = size.width / size.height;
+    const d = fitDistance(cols, rows, DEFAULT_FOV, aspect);
+    camera.position.copy(DEFAULT_OFFSET.clone().multiplyScalar(d));
+    camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
   }, [camera, size, cols, rows]);
 
@@ -191,16 +234,28 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
 
   return (
     <>
-      {/* Camera rig adjusts zoom on container resize */}
+      {/* Camera rig adjusts position on container resize */}
       <CameraRig cols={cols} rows={rows} />
 
-      {/* Orthographic camera looking straight down from y=20 */}
-      <OrthographicCamera
+      {/* Perspective camera tilted to show 3D meshes — initial position set by CameraRig */}
+      <PerspectiveCamera
         makeDefault
-        position={[0, 20, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
+        fov={DEFAULT_FOV}
         near={0.1}
         far={100}
+        position={[0, DEFAULT_OFFSET.y * 14, DEFAULT_OFFSET.z * 14]}
+      />
+
+      {/* OrbitControls — drag rotates, scroll zooms; pan disabled; polar/distance clamped */}
+      <OrbitControls
+        target={[0, 0, 0]}
+        enablePan={false}
+        enableZoom={true}
+        enableDamping={true}
+        minPolarAngle={Math.PI / 6}
+        maxPolarAngle={Math.PI / 3}
+        minDistance={5}
+        maxDistance={40}
       />
 
       {/* Lighting — issue #44.
@@ -219,7 +274,7 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
         shadow-camera-far={50}
       />
 
-      {/* Tiles — MeshStandardMaterial per type (path/buildable/void), receiveShadow enabled (AC2/AC3) */}
+      {/* Tiles — MeshStandardMaterial per type (path/buildable/void), receiveShadow enabled */}
       {tileMeshes.map(({ key, x, y, z, material }) => (
         <mesh
           key={key}
@@ -276,7 +331,9 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
           );
         })()}
 
-      {/* Invisible ground picker — handles pointer events for hover + click */}
+      {/* Invisible ground picker — handles pointer events for hover + click.
+           Picker math is camera-agnostic: r3f raycasts against this plane and
+           returns e.point in world space, which worldToCell converts to grid coords. */}
       <mesh
         position={[pickerWx, 0, pickerWz]}
         rotation={[-Math.PI / 2, 0, 0]}
