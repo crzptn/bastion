@@ -135,13 +135,32 @@ golangci-lint uses **v2** config (`.golangci.yml`, `version: "2"`). The vendored
 
 ## Agent workflow
 
-Delivery pipeline: **planner → coder → smoke-tester → reviewer** (see `.cursor/rules/subagents.mdc`).
+Delivery pipeline: **planner → red-team → coder → smoke-tester → reviewer** (see `.cursor/rules/subagents.mdc`). Every handoff between stages is a typed YAML block conforming to **[docs/pipeline-handoff-schema.md](docs/pipeline-handoff-schema.md)** — that schema is the contract, not the prose in any single agent file.
 
 | Resource | Purpose |
 |----------|---------|
-| `.cursor/agents/` | Agent role definitions (coder, planner, smoke-tester, reviewer) |
+| `.cursor/agents/`, `.claude/agents/`, `.github/agents/` | Agent role definitions across the three homes |
+| `.claude/commands/pipeline.md` | Claude Code orchestrator — validates handoffs, hashes failure signatures, enforces token budget, writes `.pipeline-runs/<issue>/<run-id>.jsonl` |
 | `.cursor/verify-commands.md` | Runnable verification commands for smoke-tester |
-| `.cursor/agents/_bastion-conventions.md` | Short conventions summary for agents |
+| `docs/pipeline-handoff-schema.md` | Canonical HANDOFF YAML contract for all five blocks (PLAN, IMPLEMENTATION, VERIFIED, FIX, APPROVED) |
+| `docs/pipeline-observability.md` | `run.jsonl` row schema + recipes |
+
+### Structured plan contract
+
+Every plan emits a `HANDOFF:PLAN` block with **stable AC ids** (`AC1`, `AC2`, …), `files_touched[]`, `interfaces[]`, `test_cases[]` (≥1 per AC), `non_goals[]`, and `assumptions[]`. The coder refuses to start if any AC lacks a mapped `test_case`. The reviewer's `HANDOFF:APPROVED` must include `spec_conformance[]` with `status: MET` and a `file:line` `evidence` cite for every AC id.
+
+### Enforced lessons
+
+`LEARNINGS.md` is appended on every clean PR. When the same lesson appears twice or more, the reviewer **promotes** it to this file AND, where the lesson is mechanical, also creates a deterministic enforcement artifact in the same fix cycle:
+
+| Lesson shape | Enforcement artifact |
+|---|---|
+| "Don't import X from Y" | `golangci-lint` rule or `scripts/` grep pre-commit |
+| "Always assert response body, not just status" | smoke-tester test helper |
+| "Forgot to register route in NewHandler" | integration test that fails on missing route |
+| "PR description must cite `file:line` per AC" | enforced by the reviewer's spec-conformance pass (no separate CI script — see issue #49 retrospective) |
+
+Prose lessons rot. Enforced lessons compound. Always pair the promotion with the artifact.
 
 ## Security
 

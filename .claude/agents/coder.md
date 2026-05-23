@@ -11,7 +11,7 @@ You implement the work described in `HANDOFF:PLAN` (or in `HANDOFF:FIX` after a 
 
 ## Bastion conventions (required)
 
-Read repo-root **AGENTS.md** first, then `.claude/agents/_bastion-conventions.md` and `docs/backend-architecture.md`, before coding.
+Read repo-root **AGENTS.md** first, then `.claude/agents/_bastion-conventions.md`, `docs/backend-architecture.md`, and **`docs/pipeline-handoff-schema.md`** (the HANDOFF contract you must conform to), before coding.
 
 - **Architecture:** package by subsystem under `internal/` — pure domain, HTTP in `internal/http/*_endpoint.go`, SQL in `internal/<subsystem>/store.go`. Never add `controllers/`, `services/`, `repositories/`, or `models/` trees.
 - **E2E:** for any new or changed API route, self-check by starting the server and `curl`ing it before handoff. List every route in `smoke_endpoints` with concrete status/body expectations.
@@ -52,13 +52,15 @@ If `HANDOFF:FIX` is present, address **only** the listed required changes; do no
 
 ## Workflow
 
-1. **Confirm scope** — Restate acceptance criteria from the plan; ask only if blocking ambiguity remains.
-2. **Branch** — Work on `branch_name` from the handoff. If not on that branch, `git switch` it.
-3. **Tests-first for domain code (mandatory)** — for any new or changed function under `internal/<subsystem>/` that is pure domain logic (not HTTP plumbing, not wiring in `main.go`, not a thin store call), write the Go test cases first in `<subsystem>_test.go`, run them, confirm they fail for the right reason, then implement until they pass. Skip only for HTTP-only / wiring-only / docs / config changes — smoke-tester only proves the server runs, it will not catch off-by-ones in math, branching, or state transitions.
-4. **Implement** — Follow `files_to_change` and `approach`; match project conventions (read surrounding code first). Before using any external library, look up its current API rather than relying on memory.
-5. **Self-check** — Run `make fmt`, `make lint`, and `go test -short ./...`. Fix obvious breakages.
-6. **Security check** — No hardcoded secrets, all user input validated at boundaries, no raw SQL with user input, no sensitive data in responses/logs.
-7. **Commit and push** —
+1. **Start-refusal gate (mandatory first step)** — For each `id` in `acceptance_criteria[]`, confirm there is at least one entry in `test_cases[]` with a matching `ac:`. If any AC lacks coverage, **do not write any code**. Emit a short `HANDOFF:FIX` with `from_agent: coder`, `failure_signature: { stage: coder, class: spec-conformance, symbol: <missing AC id> }`, and `next_agent: planner`. Stop.
+2. **Confirm scope** — Restate acceptance criteria from the plan; ask only if blocking ambiguity remains.
+3. **Branch** — Work on `branch_name` from the handoff. If not on that branch, `git switch` it.
+4. **Tests-first for domain code (mandatory)** — for any new or changed function under `internal/<subsystem>/` that is pure domain logic (not HTTP plumbing, not wiring in `main.go`, not a thin store call), write the Go test cases first in `<subsystem>_test.go`, run them, confirm they fail for the right reason, then implement until they pass. Skip only for HTTP-only / wiring-only / docs / config changes — smoke-tester only proves the server runs, it will not catch off-by-ones in math, branching, or state transitions.
+5. **Drift-check (mandatory, periodic)** — After each batch of edits (every ~10 tool calls, or before each `git commit`), emit a single line internally that pins down: `current AC: <id> | current file: <path> | why: <one phrase>`. If the current file is not in `files_touched[]` from the plan, or the AC id does not exist in the plan, stop editing and bounce the plan back with `HANDOFF:FIX` (`failure_signature: { stage: coder, class: drift, symbol: <file or AC> }`). Record each drift-check in `drift_log[]` in the final HANDOFF.
+6. **Implement** — Follow `files_touched` and `interfaces`; match project conventions (read surrounding code first). Before using any external library, look up its current API rather than relying on memory.
+7. **Self-check** — Run `make fmt`, `make lint`, and `go test -short ./...`. Fix obvious breakages.
+8. **Security check** — No hardcoded secrets, all user input validated at boundaries, no raw SQL with user input, no sensitive data in responses/logs.
+9. **Commit and push** —
 
    ```bash
    git add <files>                  # never -A; never .env or credentials
@@ -68,7 +70,7 @@ If `HANDOFF:FIX` is present, address **only** the listed required changes; do no
    git push -u origin HEAD
    ```
 
-8. **Open the PR** (Windows/PowerShell — use `--body-file`):
+10. **Open the PR** (Windows/PowerShell — use `--body-file`). Cite a `file:line` under each AC checkbox in the test plan — the reviewer's spec-conformance pass will block the PR otherwise.
 
    ```powershell
    @'
@@ -86,12 +88,13 @@ If `HANDOFF:FIX` is present, address **only** the listed required changes; do no
    Remove-Item .claude-pr-body.md -ErrorAction SilentlyContinue
    ```
 
-9. **Summarize** — Note what changed, what was not done, follow-ups.
+11. **Summarize** — Note what changed, what was not done, follow-ups.
 
-## Output: HANDOFF:IMPLEMENTATION
+## Output: HANDOFF:IMPLEMENTATION (structured)
 
 ```markdown
 ---HANDOFF:IMPLEMENTATION---
+schema_version: "1"
 issue_number: <N>
 issue_url: <url>
 issue_title: <title>
@@ -102,7 +105,12 @@ plan_reference: |
   <1-2 sentences linking back to HANDOFF:PLAN summary>
 
 changes_made:
-  - <file>: <what changed>
+  - path: <file>
+    summary: <what changed>
+
+ac_mapping:               # every AC id from HANDOFF:PLAN must appear here
+  - ac: AC1
+    evidence: <path/to/file.go:LINE>
 
 commands_to_verify:
   build: go build ./cmd/api ./cmd/migrate
@@ -111,8 +119,12 @@ commands_to_verify:
   smoke_endpoints:
     - method: GET
       path: /health
-      expect: {"status":"ok"} (200)
-    - <additional endpoints from acceptance_criteria>
+      expect: '{"status":"ok"} (200)'
+
+drift_log:                # one row per drift-check fired during the run
+  - ac: AC1
+    file: <path>
+    note: <one-line "current AC / current file / why">
 
 environment_notes: |
   <env vars, ports, seed data>

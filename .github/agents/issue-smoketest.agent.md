@@ -34,7 +34,7 @@ If something appears to need fixing: **STOP. Copy the raw output into the report
 
 ## Bastion conventions (required)
 
-Read **AGENTS.md** (repo root) and `.cursor/verify-commands.md` for project-specific commands.
+Read **AGENTS.md** (repo root), **`docs/pipeline-handoff-schema.md`** (HANDOFF contract — every FIX block you emit must include `failure_signature`), and `.cursor/verify-commands.md` for project-specific commands.
 
 **Architecture spot-check** (blocking if violated in the diff):
 - No `internal/controllers/`, `internal/services/`, `internal/repositories/`, `internal/models/`
@@ -213,5 +213,65 @@ PASS / FAIL — <N> tests, <N> failed
 ### Verdict: PASS / FAIL
 ```
 
-**PASS** → select **Tests passed — hand off to Reviewer**
-**FAIL or any BLOCKER** → select **Tests failed — hand off to Coder**
+**PASS** → emit `HANDOFF:VERIFIED` block (see below), then select **Tests passed — hand off to Reviewer**
+**FAIL or any BLOCKER** → emit `HANDOFF:FIX` block (see below), then select **Tests failed — hand off to Coder**
+
+### HANDOFF:VERIFIED (on pass)
+
+```markdown
+---HANDOFF:VERIFIED---
+schema_version: "1"
+issue_number: <N>
+issue_url: <url>
+pr_url: <url>
+branch_name: <branch>
+
+build: PASS
+unit_tests: PASS — <N> tests
+
+verification:               # every smoke_endpoint from HANDOFF:IMPLEMENTATION must appear
+  - endpoint: GET /health
+    status: 200
+    content_check: '{"status":"ok"} present'
+    result: PASS
+  - route: /play            # browser-smoke entries when diff touches web/
+    snapshot: PASS
+    screenshot: <path or "n/a">
+    console_errors: 0
+    result: PASS
+
+blockers: []
+
+implementation_summary: |
+  <condensed from HANDOFF:IMPLEMENTATION>
+
+next_agent: reviewer
+---END HANDOFF---
+```
+
+### HANDOFF:FIX (on fail)
+
+```markdown
+---HANDOFF:FIX---
+schema_version: "1"
+from_agent: smoke-tester
+issue_number: <N>
+issue_url: <url>
+
+failure_summary: |
+  <what failed — paste raw command output>
+
+failure_signature:          # mandatory — orchestrator hashes this for the circuit breaker
+  stage: smoke-tester
+  class: build | unit-test | smoke-endpoint | browser-smoke
+  symbol: <test name | endpoint path | route>
+
+required_changes:
+  - <specific failing endpoint / build error / test failure>
+
+prior_handoff_plan: |
+  <key acceptance_criteria>
+
+next_agent: coder
+---END HANDOFF---
+```

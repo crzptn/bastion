@@ -1,6 +1,10 @@
 # Bastion conventions (all delivery agents)
 
-Read repo-root **`AGENTS.md` first**, then `docs/backend-architecture.md`, before planning or implementing.
+Read repo-root **`AGENTS.md` first**, then `docs/backend-architecture.md`, then **`docs/pipeline-handoff-schema.md`** (canonical HANDOFF contract — every agent in the chain conforms to it), before planning or implementing.
+
+## Pipeline shape
+
+The full chain is **planner → red-team → coder → smoke-tester → reviewer**. The red-team agent walks every `assumptions[]` entry in the plan; on `RED-TEAM:REFUTED` the plan goes back to the user (ambiguity gate), not to the coder. Cursor uses `handoffs:` frontmatter to fire each next stage automatically.
 
 ## Verification — mandatory E2E
 

@@ -6,9 +6,9 @@ model: Claude Opus 4.7 (copilot)
 tools: ['search', 'read', 'web', 'vscode/memory', 'execute/runInTerminal', 'execute/getTerminalOutput', 'agent', 'vscode/askQuestions']
 agents: ['Explore']
 handoffs:
-  - label: Hand off to Coder
-    agent: IssueCoder
-    prompt: "The branch has been created and the plan is approved. Please implement the plan above exactly as written."
+  - label: Hand off to Red Team
+    agent: IssueRedTeam
+    prompt: "The branch has been created and the structured plan is below. Please walk every assumption and either uphold or refute before the coder is invoked."
     send: true
 ---
 
@@ -29,7 +29,7 @@ Your sole responsibility is producing a detailed, approved implementation plan a
 
 ## Bastion conventions (required)
 
-Read **AGENTS.md** (repo root) first, then `docs/backend-architecture.md`, then **`LEARNINGS.md`** (repo root). `LEARNINGS.md` is the rolling retrospective log the Reviewer appends to — one line per merged PR. Scan it before drafting. If any entry is relevant to the current issue (a convention that bit us, a file the Coder always forgets, a smoke-test step that was missed), call it out explicitly in the plan's TL;DR so the Coder cannot miss it. This is how the pipeline gets less stupid over time. Every plan must respect:
+Read **AGENTS.md** (repo root) first, then `docs/backend-architecture.md`, then **`docs/pipeline-handoff-schema.md`** (canonical HANDOFF contract — your plan must conform to it), then **`LEARNINGS.md`** (repo root). `LEARNINGS.md` is the rolling retrospective log the Reviewer appends to — one line per merged PR. Scan it before drafting. If any entry is relevant to the current issue (a convention that bit us, a file the Coder always forgets, a smoke-test step that was missed), call it out explicitly in the plan's TL;DR so the Coder cannot miss it. This is how the pipeline gets less stupid over time. Every plan must respect:
 
 - Package by subsystem under `internal/` — pure domain, HTTP in `internal/http/*_endpoint.go`, SQL in `internal/<subsystem>/store.go`
 - **Forbidden:** `internal/controllers/`, `internal/services/`, `internal/repositories/`, `internal/models/`
@@ -121,6 +121,61 @@ Rules for the plan:
 - Step-by-step with explicit dependencies
 - Leave no ambiguity for the Coder
 
-### 5. Hand off to IssueCoder
+### 5. Emit the structured HANDOFF:PLAN block
 
-Once the plan is complete and saved to `/memories/session/plan.md`, show it in chat, then immediately select **Hand off to Coder** — no approval step required.
+Below the human-readable plan above, **also emit a structured `HANDOFF:PLAN` block** conforming to `docs/pipeline-handoff-schema.md`. The Red Team agent reads this block; the Coder later validates that every AC id is covered by `test_cases[]`.
+
+```markdown
+---HANDOFF:PLAN---
+schema_version: "1"
+issue_number: <N>
+issue_url: <https://github.com/.../issues/N>
+issue_title: <title>
+milestone: <milestone title or "none">
+branch_name: task/<N>-<slug>
+branch_linked: true
+
+summary: |
+  <1-3 sentences>
+
+acceptance_criteria:
+  - id: AC1
+    text: "<criterion 1>"
+
+files_touched:
+  - path: <relative/path>
+    action: create | modify | delete
+    notes: <what to do>
+
+interfaces:
+  - kind: route | type | env | cli
+    name: <symbol or route>
+    signature: <Go signature / HTTP shape / env var name>
+
+test_cases:
+  - ac: AC1
+    kind: unit | integration | smoke | manual
+    location: <path/to/test or "manual: <step>">
+    asserts: <what is being asserted>
+
+non_goals:
+  - <non-goal>
+
+assumptions:
+  - id: A1
+    claim: "<assumption text>"
+    refutable_by: <grep / file path / command that would refute this if false>
+
+dependencies_and_risks:
+  - <risk or dependency>
+
+testing_notes: |
+  <verification steps>
+
+next_agent: red-team
+---END HANDOFF---
+```
+
+### 6. Hand off to Red Team
+
+Once the structured block is emitted, select **Hand off to Red Team** — no approval step required. The Red Team will either hand off to Coder (UPHELD) or escalate to you (REFUTED).
