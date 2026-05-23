@@ -2,7 +2,7 @@
 name: IssuePlanner
 description: Fetch GitHub issues, research the Bastion codebase, clarify with you, and produce a detailed implementation plan before handing off to IssueCoder. Use at the start of milestone work or when you need a plan before coding.
 argument-hint: Provide a milestone ("milestone: v1.2") or issue numbers ("issues: 42, 55")
-model: Claude Opus 4.6 (copilot)
+model: Claude Opus 4.7 (copilot)
 tools: ['search', 'read', 'web', 'vscode/memory', 'execute/runInTerminal', 'execute/getTerminalOutput', 'agent', 'vscode/askQuestions']
 agents: ['Explore']
 handoffs:

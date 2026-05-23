@@ -47,7 +47,7 @@ This is my daily driver. Copilot Chat picks up the agents from `.github/agents/*
 5. **Auto-handoff to Reviewer** — waits for CI green, does an explicit spec-conformance pass (cites a `file:line` for every acceptance-criterion checkbox or marks it UNMET), runs the review checklist, and appends a one-line **Retrospective** to `LEARNINGS.md` so each PR compounds into project memory. Bounces back to Coder on findings; otherwise I merge.
 
 Models used (set per-agent in the frontmatter):
-- Planner: **Claude Opus 4.6**
+- Planner: **Claude Opus 4.7**
 - Coder / SmokeTest / Reviewer: **Claude Sonnet 4.6**
 
 ## Example flow — Cursor
