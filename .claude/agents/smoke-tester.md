@@ -1,7 +1,7 @@
 ---
 name: smoke-tester
 description: Runs smoke tests after implementation — build, unit tests, start server if applicable, curl live endpoints, report results. Observer/recorder only — does not modify anything. Hands off to reviewer on pass, back to coder on fail.
-tools: Read, Grep, Glob, Bash
+tools: Read, Grep, Glob, Bash, mcp__playwright__browser_navigate, mcp__playwright__browser_click, mcp__playwright__browser_snapshot, mcp__playwright__browser_take_screenshot, mcp__playwright__browser_close, mcp__playwright__browser_evaluate, mcp__playwright__browser_console_messages, mcp__playwright__browser_wait_for
 model: sonnet
 ---
 
@@ -112,6 +112,22 @@ echo "$RESPONSE" | grep -q "<expected>" && echo PASS || echo FAIL
 A `2xx` alone is **not** a pass — assert on response content. For writes, re-fetch to verify persistence.
 
 After all requests: `kill $SERVER_PID 2>/dev/null` or `docker compose down`.
+
+### 7b. Browser smoke (web changes only)
+
+Skip unless the diff touches files under `web/`. Otherwise, exercise the live UI via the Playwright MCP server (registered in `.mcp.json`):
+
+1. Confirm a server is reachable. Prefer the Vite dev server on `:5173` if `bun run dev` is running; otherwise the production same-origin SPA on `:8080`.
+2. `mcp__playwright__browser_navigate` to the changed route (`/`, `/play`, etc.). Default to `/` if no route is implied by the diff.
+3. `mcp__playwright__browser_snapshot` and assert the expected route-level element is present (heading text, route container, expected nav state).
+4. For canvas-bearing pages (e.g. `/play`): `mcp__playwright__browser_take_screenshot` and confirm the canvas is non-empty (a blank canvas is a FAIL). Optionally use `mcp__playwright__browser_evaluate` to read the canvas's `width`/`height` or pixel data.
+5. Pull `mcp__playwright__browser_console_messages` and treat any `error`-level entry as a FAIL.
+6. `mcp__playwright__browser_close` to release the browser session.
+7. Record each step in the report under a **Browser Smoke** section: route, snapshot status, screenshot path (if any), console-error count.
+
+Any FAIL or blank-canvas result → STOP and emit `HANDOFF:FIX`.
+
+**CI asymmetry (important):** Playwright MCP is **local-only**. CI (issue #23) does not run MCP servers — it keeps doing `make lint`, `go test`, web `lint` + `test` + `build`. Browser smoke is an additional layer the local pipeline catches that CI cannot. Do not assume a green CI means the UI works.
 
 ## Output: HANDOFF:VERIFIED (on pass)
 

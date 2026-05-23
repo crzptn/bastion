@@ -2,7 +2,7 @@
 name: IssueSmokeTest
 description: Run smoke tests after implementation — build, unit tests, start server if applicable, curl live endpoints, report results.
 model: Claude Sonnet 4.6 (copilot)
-tools: ['search/codebase', 'search/textSearch', 'search/fileSearch', 'search/listDirectory', 'read/readFile', 'read/problems', 'read/terminalLastCommand', 'read/terminalSelection', 'execute/runInTerminal', 'execute/getTerminalOutput', 'execute/testFailure', 'agent/runSubagent']
+tools: ['search/codebase', 'search/textSearch', 'search/fileSearch', 'search/listDirectory', 'read/readFile', 'read/problems', 'read/terminalLastCommand', 'read/terminalSelection', 'execute/runInTerminal', 'execute/getTerminalOutput', 'execute/testFailure', 'agent/runSubagent', 'mcp/playwright/browser_navigate', 'mcp/playwright/browser_click', 'mcp/playwright/browser_snapshot', 'mcp/playwright/browser_take_screenshot', 'mcp/playwright/browser_close', 'mcp/playwright/browser_evaluate', 'mcp/playwright/browser_console_messages', 'mcp/playwright/browser_wait_for']
 user-invocable: true
 handoffs:
   - label: Tests passed — hand off to Reviewer
@@ -170,6 +170,22 @@ After all requests:
 kill $SERVER_PID 2>/dev/null
 # or: docker compose down
 ```
+
+### 7b. Browser smoke (web changes only)
+
+Skip unless the diff touches files under `web/`. Otherwise, exercise the live UI via the Playwright MCP server (registered in `.vscode/mcp.json`). If the Playwright tools do not appear in the VS Code Copilot Chat tool palette after `.vscode/mcp.json` is added, the exact frontmatter name format may need adjustment — verify against the current Copilot Chat MCP docs (this file uses `mcp/playwright/<tool>` based on the closest existing convention in this repo).
+
+1. Confirm a server is reachable. Prefer the Vite dev server on `:5173` if `bun run dev` is running; otherwise the production same-origin SPA on `:8080`.
+2. Use #tool:mcp/playwright/browser_navigate to load the changed route (`/`, `/play`, etc.). Default to `/` if no route is implied by the diff.
+3. Use #tool:mcp/playwright/browser_snapshot and assert the expected route-level element is present (heading text, route container, expected nav state).
+4. For canvas-bearing pages (e.g. `/play`): use #tool:mcp/playwright/browser_take_screenshot and confirm the canvas is non-empty (a blank canvas is a FAIL).
+5. Pull #tool:mcp/playwright/browser_console_messages and treat any `error`-level entry as a FAIL.
+6. Use #tool:mcp/playwright/browser_close to release the browser session.
+7. Record each step in the report under a **Browser Smoke** section: route, snapshot status, screenshot path (if any), console-error count.
+
+Any FAIL or blank-canvas result → **STOP. Select Tests failed.**
+
+**CI asymmetry (important):** Playwright MCP is **local-only**. CI (issue #23) does not run MCP servers — it keeps doing `make lint`, `go test`, web `lint` + `test` + `build`. Browser smoke is an additional layer the local pipeline catches that CI cannot. Do not assume a green CI means the UI works.
 
 ### 8. Write the report and hand off
 
