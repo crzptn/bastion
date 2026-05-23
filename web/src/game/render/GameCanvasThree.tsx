@@ -55,10 +55,21 @@ function parseRgba(rgba: string): { color: THREE.Color; opacity: number } {
   return { color: new THREE.Color(r, g, b), opacity: a };
 }
 
-const THEME_BG = hexToThreeColor(THEME.bg);
-const THEME_PATH = hexToThreeColor(THEME.path);
-const THEME_BUILDABLE = hexToThreeColor(THEME.buildable);
 const THEME_HOVER_PARSED = parseRgba(THEME.hover);
+
+// ---------------------------------------------------------------------------
+// Tile materials — module-scope MeshStandardMaterial instances, one per tile type.
+// Using MeshStandardMaterial so tiles receive lighting and shadow (AC3).
+// ---------------------------------------------------------------------------
+const TILE_PATH_MATERIAL = new THREE.MeshStandardMaterial({
+  color: hexToThreeColor(THEME.path),
+});
+const TILE_BUILDABLE_MATERIAL = new THREE.MeshStandardMaterial({
+  color: hexToThreeColor(THEME.buildable),
+});
+const TILE_BG_MATERIAL = new THREE.MeshStandardMaterial({
+  color: hexToThreeColor(THEME.bg),
+});
 
 // ---------------------------------------------------------------------------
 // Props — identical shape to the deleted GameCanvas
@@ -157,16 +168,16 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
   const tileMeshes = useMemo(() => {
     return grid.cells.map((cell) => {
       const isPath = pathCellSet.has(`${cell.x},${cell.y}`);
-      let color: THREE.Color;
+      let material: THREE.MeshStandardMaterial;
       if (isPath) {
-        color = THEME_PATH;
+        material = TILE_PATH_MATERIAL;
       } else if (cell.buildable) {
-        color = THEME_BUILDABLE;
+        material = TILE_BUILDABLE_MATERIAL;
       } else {
-        color = THEME_BG;
+        material = TILE_BG_MATERIAL;
       }
       const [wx, wy, wz] = gridToWorld(cell.x, cell.y);
-      return { key: `${cell.x},${cell.y}`, x: wx, y: wy, z: wz, color, buildable: cell.buildable };
+      return { key: `${cell.x},${cell.y}`, x: wx, y: wy, z: wz, material, buildable: cell.buildable };
     });
   }, [grid.cells, pathCellSet, gridToWorld]);
 
@@ -190,21 +201,32 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
         far={100}
       />
 
-      {/* Minimal lighting for MeshStandardMaterial on per-def meshes (#43).
-           Lighting will be refined in issue #44. */}
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[5, 10, 5]} intensity={0.8} />
+      {/* Lighting — issue #44.
+           ambientLight provides base fill; directionalLight casts shadows onto ground. */}
+      <ambientLight intensity={0.35} />
+      <directionalLight
+        position={[5, 10, 5]}
+        intensity={0.9}
+        castShadow
+        shadow-mapSize={[1024, 1024] as [number, number]}
+        shadow-camera-left={-cols / 2}
+        shadow-camera-right={cols / 2}
+        shadow-camera-top={rows / 2}
+        shadow-camera-bottom={-rows / 2}
+        shadow-camera-near={0.1}
+        shadow-camera-far={50}
+      />
 
-      {/* Tiles */}
-      {tileMeshes.map(({ key, x, y, z, color }) => (
+      {/* Tiles — MeshStandardMaterial per type (path/buildable/void), receiveShadow enabled (AC2/AC3) */}
+      {tileMeshes.map(({ key, x, y, z, material }) => (
         <mesh
           key={key}
           geometry={tileGeometry}
+          material={material}
           position={[x, y, z]}
           rotation={[-Math.PI / 2, 0, 0]}
-        >
-          <meshBasicMaterial color={color} />
-        </mesh>
+          receiveShadow
+        />
       ))}
 
       {/* Towers — per-def mesh; tower mesh "front" faces -z (top-down camera reference).
@@ -280,7 +302,7 @@ export function GameCanvasThree({ map, towers = [], enemies = [], onCellClick }:
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <Canvas dpr={[1, 2]} flat>
+      <Canvas dpr={[1, 2]} flat shadows>
         <Scene map={map} towers={towers} enemies={enemies} onCellClick={onCellClick} />
       </Canvas>
     </div>
