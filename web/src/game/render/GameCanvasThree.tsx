@@ -7,10 +7,11 @@
  * Three.js uses a right-handed coordinate system with y-up.
  * We map:   sim.x  → world.x  (left/right)
  *           sim.y  → world.z  (into/out-of screen, since camera looks down)
- *           world.y is always 0 for tiles (ground plane) or 0.3 for elevated meshes.
+ *           world.y varies by tile kind (see tileTopY / tileCenterY helpers below)
  *
- * gridToWorld(col, row) => [col - cols/2 + 0.5,  0,  row - rows/2 + 0.5]
- * The inverse (worldToCell) is used in the pointer handler.
+ * gridToWorld(col, row) => [col - cols/2 + 0.5,  tileCenterY(kind),  row - rows/2 + 0.5]
+ * The inverse (worldToCell) is used in the pointer handler, which raycasts against
+ * the invisible ground picker at y=0 — picker math is camera-agnostic.
  *
  * Performance note
  * ----------------
@@ -24,6 +25,14 @@
  * CameraRig computes the camera distance to fit the entire grid in the viewport,
  * using fitDistance(). OrbitControls provides drag-rotate + scroll-zoom with
  * pan disabled and polar/distance clamped.
+ *
+ * Tile elevation
+ * --------------
+ * Three BoxGeometry instances (module-scope) represent the three tile kinds:
+ *   buildable — tallest (h=0.20), topY=0.10   — castShadow onto adjacent tiles
+ *   path      — medium  (h=0.05), topY=0.00   — no shadow
+ *   void      — short   (h=0.10), topY=-0.30  — sunken background
+ * Towers sit at tileTopY('buildable'); enemies at tileTopY('path') + ENEMY_LIFT.
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
@@ -39,12 +48,56 @@ import { PLACEHOLDER_TOWER_MESH, TOWER_MESHES } from './meshes/towers';
 import { HitBurst } from './meshes/hitBurst';
 
 // ---------------------------------------------------------------------------
+// Tile kind type
+// ---------------------------------------------------------------------------
+type TileKind = 'buildable' | 'path' | 'void';
+
+// ---------------------------------------------------------------------------
+// Tile elevation helpers — exported for unit tests (AC2, AC3).
+//
+// Heights (Y extent of each BoxGeometry):
+//   buildable: 0.20  topY = 0.10
+//   path:      0.05  topY = 0.00
+//   void:      0.10  topY = -0.30
+// ---------------------------------------------------------------------------
+const TILE_HEIGHTS: Record<TileKind, number> = {
+  buildable: 0.20,
+  path: 0.05,
+  void: 0.10,
+};
+
+const TILE_TOP_Y: Record<TileKind, number> = {
+  buildable: 0.10,
+  path: 0.00,
+  void: -0.30,
+};
+
+/** Y coordinate of the top surface of a tile of the given kind. */
+export function tileTopY(kind: TileKind): number {
+  return TILE_TOP_Y[kind];
+}
+
+/**
+ * Y coordinate of the centre of a tile box (position.y for the mesh).
+ * centre = topY - height/2
+ */
+export function tileCenterY(kind: TileKind): number {
+  return TILE_TOP_Y[kind] - TILE_HEIGHTS[kind] / 2;
+}
+
+/** How much enemies float above the path surface. */
+const ENEMY_LIFT = 0.05;
+
+// ---------------------------------------------------------------------------
 // Shared geometry / material instances (module-level to avoid re-allocation)
 // Per-def tower and enemy geometries/materials live in meshes/towers.ts and
 // meshes/enemies.ts respectively.
 // ---------------------------------------------------------------------------
-const tileGeometry = new THREE.PlaneGeometry(1, 1);
-const hoverGeometry = new THREE.PlaneGeometry(1, 1);
+const TILE_BUILDABLE_GEOMETRY = new THREE.BoxGeometry(1, TILE_HEIGHTS.buildable, 1);
+const TILE_PATH_GEOMETRY = new THREE.BoxGeometry(1, TILE_HEIGHTS.path, 1);
+const TILE_VOID_GEOMETRY = new THREE.BoxGeometry(1, TILE_HEIGHTS.void, 1);
+
+const hoverGeometry = new THREE.BoxGeometry(1, 0.002, 1);
 
 // ---------------------------------------------------------------------------
 // Color helpers — parse THEME hex/rgba strings into THREE.Color
@@ -209,22 +262,54 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
   const pathCellSet = useMemo(() => buildPathCellSet(path), [path]);
   const { gridToWorld, worldToCell } = useMemo(() => makeHelpers(cols, rows), [cols, rows]);
 
-  // Pre-build per-cell tile data to avoid repeated work in render
+  // Pre-build per-cell tile data to avoid repeated work in render.
+  // kind drives geometry selection, castShadow, and Y placement.
   const tileMeshes = useMemo(() => {
     return grid.cells.map((cell) => {
       const isPath = pathCellSet.has(`${cell.x},${cell.y}`);
       let material: THREE.MeshStandardMaterial;
+      let kind: TileKind;
       if (isPath) {
         material = TILE_PATH_MATERIAL;
+        kind = 'path';
       } else if (cell.buildable) {
         material = TILE_BUILDABLE_MATERIAL;
+        kind = 'buildable';
       } else {
         material = TILE_BG_MATERIAL;
+        kind = 'void';
       }
-      const [wx, wy, wz] = gridToWorld(cell.x, cell.y);
-      return { key: `${cell.x},${cell.y}`, x: wx, y: wy, z: wz, material, buildable: cell.buildable };
+      const [wx, , wz] = gridToWorld(cell.x, cell.y);
+      const cy = tileCenterY(kind);
+      const topY = tileTopY(kind);
+      const geometry =
+        kind === 'buildable'
+          ? TILE_BUILDABLE_GEOMETRY
+          : kind === 'path'
+            ? TILE_PATH_GEOMETRY
+            : TILE_VOID_GEOMETRY;
+      return {
+        key: `${cell.x},${cell.y}`,
+        x: wx,
+        centerY: cy,
+        topY,
+        z: wz,
+        material,
+        kind,
+        geometry,
+      };
     });
   }, [grid.cells, pathCellSet, gridToWorld]);
+
+  // Build a map from cell key to topY for tower placement.
+  // Towers only go on buildable cells (A1), so this defaults to tileTopY('buildable').
+  const cellTopY = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of tileMeshes) {
+      m.set(t.key, t.topY);
+    }
+    return m;
+  }, [tileMeshes]);
 
   // Ground picker event handlers
   const [pickerWx, pickerWz] = useMemo((): [number, number] => {
@@ -274,41 +359,47 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
         shadow-camera-far={50}
       />
 
-      {/* Tiles — MeshStandardMaterial per type (path/buildable/void), receiveShadow enabled */}
-      {tileMeshes.map(({ key, x, y, z, material }) => (
+      {/* Tiles — BoxGeometry per kind (buildable/path/void), receiveShadow on all.
+           Buildable tiles castShadow onto adjacent lower tiles (AC4).
+           Y position is tileCenterY(kind) so the top surface aligns with tileTopY. */}
+      {tileMeshes.map(({ key, x, centerY, z, material, kind, geometry }) => (
         <mesh
           key={key}
-          geometry={tileGeometry}
+          geometry={geometry}
           material={material}
-          position={[x, y, z]}
-          rotation={[-Math.PI / 2, 0, 0]}
+          position={[x, centerY, z]}
           receiveShadow
+          castShadow={kind === 'buildable'}
         />
       ))}
 
-      {/* Towers — per-def mesh; tower mesh "front" faces -z (top-down camera reference).
+      {/* Towers — per-def mesh; Y = cellTopY for the tower's cell (always buildable).
            Falls back to PLACEHOLDER_TOWER_MESH for unknown defIds (magenta, no throw). */}
       {towers.map((tower) => {
         const [wx, , wz] = gridToWorld(tower.x, tower.y);
         const TowerMesh = TOWER_MESHES[tower.defId] ?? PLACEHOLDER_TOWER_MESH;
-        return <TowerMesh key={tower.id} position={[wx, 0.3, wz]} lastFiredAt={tower.lastFiredAt} />;
+        const towerY = cellTopY.get(`${tower.x},${tower.y}`) ?? tileTopY('buildable');
+        return <TowerMesh key={tower.id} position={[wx, towerY, wz]} lastFiredAt={tower.lastFiredAt} />;
       })}
 
       {/* Enemies — per-def mesh via ENEMY_MESHES registry.
+           Y = tileTopY('path') + ENEMY_LIFT so enemies sit on the path surface.
            Falls back to PLACEHOLDER_ENEMY_MESH for unknown defIds (magenta, no throw). */}
       {enemies.map((enemy) => {
         const pos = enemyPosition(enemy, path);
         const [wx, , wz] = gridToWorld(pos.x, pos.y);
         const EnemyMesh = ENEMY_MESHES[enemy.defId] ?? PLACEHOLDER_ENEMY_MESH;
+        const enemyY = tileTopY('path') + ENEMY_LIFT;
         return (
           <Fragment key={enemy.id}>
-            <EnemyMesh position={[wx, 0.3, wz]} />
-            <HitBurst lastHitAt={enemy.lastHitAt} position={[wx, 0.3, wz]} />
+            <EnemyMesh position={[wx, enemyY, wz]} />
+            <HitBurst lastHitAt={enemy.lastHitAt} position={[wx, enemyY, wz]} />
           </Fragment>
         );
       })}
 
-      {/* Hover highlight — only on buildable cells */}
+      {/* Hover highlight — only on buildable cells.
+           Y = tileTopY('buildable') + 0.01 so it floats just above the tile surface (AC5). */}
       {hovered &&
         (() => {
           const cell = grid.cells.find((c) => c.x === hovered.x && c.y === hovered.y);
@@ -318,8 +409,7 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
             <mesh
               key="hover"
               geometry={hoverGeometry}
-              position={[wx, 0.01, wz]}
-              rotation={[-Math.PI / 2, 0, 0]}
+              position={[wx, tileTopY('buildable') + 0.01, wz]}
             >
               <meshBasicMaterial
                 color={THEME_HOVER_PARSED.color}
@@ -332,8 +422,9 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
         })()}
 
       {/* Invisible ground picker — handles pointer events for hover + click.
-           Picker math is camera-agnostic: r3f raycasts against this plane and
-           returns e.point in world space, which worldToCell converts to grid coords. */}
+           Kept at y=0 (ground plane) so raycast math is camera-agnostic and
+           worldToCell conversion remains unchanged. The picker is not a tile and
+           does not participate in tile elevation. */}
       <mesh
         position={[pickerWx, 0, pickerWz]}
         rotation={[-Math.PI / 2, 0, 0]}
