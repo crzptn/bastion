@@ -1,5 +1,5 @@
 import { STARTER_MAP, TOWER_DEFS, WAVES, useGameSession } from '../game';
-import { GameCanvas } from '../game/render/GameCanvas';
+import { GameCanvasThree } from '../game/render/GameCanvasThree';
 
 // ---------------------------------------------------------------------------
 // EndScreen overlay — rendered over the canvas on 'gameover' or 'victory'
@@ -174,7 +174,7 @@ export function PlayPage() {
             onRestart={restart}
           />
         )}
-        <GameCanvas
+        <GameCanvasThree
           map={STARTER_MAP}
           towers={state.towers}
           enemies={state.enemies}
