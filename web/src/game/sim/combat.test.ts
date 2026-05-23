@@ -288,3 +288,54 @@ describe('tickCombat – VFX timestamps', () => {
     expect(next.enemies[0].hp).toBe(ENEMY_DEFS.goblin.hp - TOWER_DEFS.archer.damage);
   });
 });
+
+// ------------------------------------------------------------------ VFX target id (AC2)
+describe('tickCombat – lastFiredTargetId', () => {
+  it('sets lastFiredTargetId to the targeted enemy id when a tower fires', () => {
+    const state = combatState({
+      towers: [makeTower('t1', 0, 0, 'archer', 0)],
+      enemies: [makeGoblin('e1', 0)],
+    });
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
+    const t = next.towers.find((t) => t.id === 't1')!;
+    expect(t.lastFiredTargetId).toBe('e1');
+  });
+
+  it('sets lastFiredTargetId to the furthest-along enemy when multiple in range', () => {
+    const state = combatState({
+      towers: [makeTower('t1', 0, 0, 'archer', 0)],
+      enemies: [makeGoblin('e1', 0), makeGoblin('e2', 2)],
+    });
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
+    const t = next.towers.find((t) => t.id === 't1')!;
+    expect(t.lastFiredTargetId).toBe('e2');
+  });
+
+  it('preserves prior lastFiredTargetId when tower is in cooldown', () => {
+    const tower: TowerInstance = {
+      id: 't1', defId: 'archer', x: 0, y: 0,
+      cooldownRemaining: 0.5, lastFiredAt: 500, lastFiredTargetId: 'e0',
+    };
+    const state = combatState({
+      towers: [tower],
+      enemies: [makeGoblin('e1', 0)],
+    });
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
+    const updated = next.towers.find((t) => t.id === 't1')!;
+    expect(updated.lastFiredTargetId).toBe('e0');
+  });
+
+  it('lastFiredTargetId is undefined when tower has never fired and no shot this tick', () => {
+    // Tower still on cooldown, no prior shot recorded
+    const tower: TowerInstance = {
+      id: 't1', defId: 'archer', x: 0, y: 0, cooldownRemaining: 0.5,
+    };
+    const state = combatState({
+      towers: [tower],
+      enemies: [makeGoblin('e1', 0)],
+    });
+    const next = tickCombat(state, MINI_PATH, 0.016, 1000);
+    const updated = next.towers.find((t) => t.id === 't1')!;
+    expect(updated.lastFiredTargetId).toBeUndefined();
+  });
+});
