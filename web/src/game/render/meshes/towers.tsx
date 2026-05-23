@@ -42,7 +42,6 @@ const archerRoofMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Col
 const placeholderTowerGeometry = new THREE.BoxGeometry(0.9, 0.6, 0.9);
 const placeholderTowerMaterial = new THREE.MeshStandardMaterial({ color: new THREE.Color(THEME.placeholder) });
 
-// flash: shared additive sphere geometry + material template (cloned per instance)
 const flashGeometry = new THREE.SphereGeometry(0.55, 8, 8);
 const flashMaterialTemplate = new THREE.MeshBasicMaterial({
   color: new THREE.Color(2.0, 1.8, 0.8),
