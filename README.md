@@ -41,13 +41,13 @@ The handoffs are wired in the agent frontmatter (`handoffs:` block), so once a s
 This is my daily driver. Copilot Chat picks up the agents from `.github/agents/*.agent.md` automatically.
 
 1. **Groom the backlog** — `@IssueCreator break down the lobby-matchmaking feature into issues`. It runs an ambiguity gate (lists every unclear point or writes NONE), waits for answers, then writes labels, milestones, and issues with binary acceptance criteria via `gh`. **This is the real planning gate** — the AC list is the contract everything downstream is measured against.
-2. **Plan** — `@IssuePlanner issues: 42`. Reads the issue, greps the repo, asks clarifying questions mid-flight if anything's ambiguous, writes a plan to `/memories/session/plan.md`, creates the branch, and auto-hands off to the Coder. There is no terminal "approve plan" gate by design — if you need one, you wanted the ambiguity caught at issue-creation time.
+2. **Plan** — `@IssuePlanner issues: 42`. Reads the issue, scans `LEARNINGS.md` for past lessons that apply, greps the repo, asks clarifying questions mid-flight if anything's ambiguous, writes a plan to `/memories/session/plan.md`, creates the branch, and auto-hands off to the Coder. There is no terminal "approve plan" gate by design — if you need one, you wanted the ambiguity caught at issue-creation time.
 3. **Auto-handoff to Coder** — implements the plan (tests-first for any pure-domain code under `internal/<subsystem>/`), runs `make fmt` / `make lint` / `bun run lint`, commits, opens a PR.
 4. **Auto-handoff to SmokeTest** — builds, runs unit tests, boots the server, curls the new endpoints, reports.
 5. **Auto-handoff to Reviewer** — waits for CI green, does an explicit spec-conformance pass (cites a `file:line` for every acceptance-criterion checkbox or marks it UNMET), runs the review checklist, and appends a one-line **Retrospective** to `LEARNINGS.md` so each PR compounds into project memory. Bounces back to Coder on findings; otherwise I merge.
 
 Models used (set per-agent in the frontmatter):
-- Planner: **Claude Opus 4.6**
+- Planner: **Claude Opus 4.7**
 - Coder / SmokeTest / Reviewer: **Claude Sonnet 4.6**
 
 ## Example flow — Cursor
@@ -105,7 +105,7 @@ sequenceDiagram
 - `migrations/` — golang-migrate SQL
 - `web/` — Bun + React + Vite + Tailwind 4 SPA
 - `.github/agents/` — the agents that actually wrote most of this
-- [`LEARNINGS.md`](./LEARNINGS.md) — one-line-per-PR retrospective log the Reviewer appends to; lessons that repeat get promoted to `AGENTS.md`
+- [`LEARNINGS.md`](./LEARNINGS.md) — one-line-per-PR retrospective log the Reviewer **writes to directly** (via `Add-Content` from the terminal) on clean verdicts. The Planner **reads** it before drafting each new plan, so applicable past lessons surface in the new plan's summary. Lessons that appear twice get promoted to `AGENTS.md`.
 
 Architecture rules and the dev workflow agents must follow live in [AGENTS.md](AGENTS.md) and [docs/backend-architecture.md](docs/backend-architecture.md).
 

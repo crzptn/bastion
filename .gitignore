@@ -8,6 +8,10 @@
 *.test
 *.out
 
+# Air
+tmp/
+build-errors.log
+
 # Go workspace
 go.work
 go.work.sum

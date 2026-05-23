@@ -2,7 +2,7 @@
 name: IssuePlanner
 description: Fetch GitHub issues, research the Bastion codebase, clarify with you, and produce a detailed implementation plan before handing off to IssueCoder. Use at the start of milestone work or when you need a plan before coding.
 argument-hint: Provide a milestone ("milestone: v1.2") or issue numbers ("issues: 42, 55")
-model: Claude Opus 4.6 (copilot)
+model: Claude Opus 4.7 (copilot)
 tools: ['search', 'read', 'web', 'vscode/memory', 'execute/runInTerminal', 'execute/getTerminalOutput', 'agent', 'vscode/askQuestions']
 agents: ['Explore']
 handoffs:
@@ -29,7 +29,7 @@ Your sole responsibility is producing a detailed, approved implementation plan a
 
 ## Bastion conventions (required)
 
-Read **AGENTS.md** (repo root) first, then `docs/backend-architecture.md`. Every plan must respect:
+Read **AGENTS.md** (repo root) first, then `docs/backend-architecture.md`, then **`LEARNINGS.md`** (repo root). `LEARNINGS.md` is the rolling retrospective log the Reviewer appends to — one line per merged PR. Scan it before drafting. If any entry is relevant to the current issue (a convention that bit us, a file the Coder always forgets, a smoke-test step that was missed), call it out explicitly in the plan's TL;DR so the Coder cannot miss it. This is how the pipeline gets less stupid over time. Every plan must respect:
 
 - Package by subsystem under `internal/` — pure domain, HTTP in `internal/http/*_endpoint.go`, SQL in `internal/<subsystem>/store.go`
 - **Forbidden:** `internal/controllers/`, `internal/services/`, `internal/repositories/`, `internal/models/`
