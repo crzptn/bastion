@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ENEMY_DEFS, createInitialRunState } from '../constants';
 import { STARTER_MAP } from '../maps/starter';
 import type { EnemyInstance, RunState } from '../types';
-import { spawnWave, tickEnemies } from './enemies';
+import { enemyHeading, spawnWave, tickEnemies } from './enemies';
 import { pathLength, positionAtDistance } from './path';
 
 const MINI_PATH = { waypoints: [{ x: 0, y: 0 }, { x: 10, y: 0 }] as const };
@@ -10,6 +10,38 @@ const MINI_PATH = { waypoints: [{ x: 0, y: 0 }, { x: 10, y: 0 }] as const };
 function makeGoblin(id: string, distanceTravelled = 0): EnemyInstance {
   return { id, defId: 'goblin', distanceTravelled, hp: ENEMY_DEFS.goblin.hp };
 }
+
+const TWO_SEGMENT_PATH = {
+  waypoints: [
+    { x: 0, y: 0 },
+    { x: 5, y: 0 },
+    { x: 5, y: 5 },
+  ] as const,
+};
+
+describe('enemyHeading', () => {
+  it('returns first segment direction at distance 0', () => {
+    const enemy = makeGoblin('e1', 0);
+    const h = enemyHeading(enemy, TWO_SEGMENT_PATH);
+    expect(h.dx).toBeCloseTo(1);
+    expect(h.dy).toBeCloseTo(0);
+  });
+
+  it('returns active segment unit vector at mid-path', () => {
+    const enemy = makeGoblin('e1', 7); // 2 units into second segment (vertical)
+    const h = enemyHeading(enemy, TWO_SEGMENT_PATH);
+    expect(h.dx).toBeCloseTo(0);
+    expect(h.dy).toBeCloseTo(1);
+  });
+
+  it('returns last segment direction when past end', () => {
+    const enemy = makeGoblin('e1', 9999);
+    const h = enemyHeading(enemy, TWO_SEGMENT_PATH);
+    // last segment is vertical (0, 1)
+    expect(h.dx).toBeCloseTo(0);
+    expect(h.dy).toBeCloseTo(1);
+  });
+});
 
 describe('pathLength', () => {
   it('returns 35 for the starter map', () => {

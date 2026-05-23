@@ -7,7 +7,7 @@
  */
 import type { EnemyInstance, Path, RunState } from '../types';
 import { ENEMY_DEFS } from '../constants';
-import { pathLength, positionAtDistance } from './path';
+import { headingAtDistance, pathLength, positionAtDistance } from './path';
 
 export function spawnWave(state: RunState, enemies: EnemyInstance[]): RunState {
   return { ...state, enemies: [...state.enemies, ...enemies] };
@@ -49,4 +49,15 @@ export function enemyPosition(
   path: Path,
 ): { x: number; y: number } {
   return positionAtDistance(path, enemy.distanceTravelled);
+}
+
+/**
+ * Returns the unit direction vector of the path segment the enemy is currently
+ * traversing. Pure render-only helper — does not mutate simulation state.
+ */
+export function enemyHeading(
+  enemy: EnemyInstance,
+  path: Path,
+): { dx: number; dy: number } {
+  return headingAtDistance(path, enemy.distanceTravelled);
 }
