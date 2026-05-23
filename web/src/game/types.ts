@@ -56,6 +56,17 @@ export type WaveDef = {
   }[];
 };
 
+export type PendingSpawn = {
+  defId: string;
+  remaining: number;
+  interval: number;
+};
+
+export type WaveProgress = {
+  spawnQueue: PendingSpawn[];
+  timeUntilNextSpawn: number;
+};
+
 export type RunState = {
   gold: number;
   baseHp: number;
@@ -63,4 +74,6 @@ export type RunState = {
   phase: GamePhase;
   towers: TowerInstance[];
   enemies: EnemyInstance[];
+  waveProgress: WaveProgress | null;
+  nextEnemyId: number;
 };

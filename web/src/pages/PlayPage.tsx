@@ -1,27 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  ENEMY_DEFS,
   STARTER_MAP,
   TOWER_DEFS,
+  WAVES,
   createInitialRunState,
   placeTower,
-  spawnWave,
+  startWave,
   tickCombat,
   tickEnemies,
+  tickWaves,
 } from '../game';
-import type { EnemyInstance, RunState } from '../game';
+import type { RunState } from '../game';
 import { GameCanvas } from '../game/render/GameCanvas';
 
 const MAX_DT = 1 / 30;
-
-function buildDebugWave(): EnemyInstance[] {
-  return Array.from({ length: 5 }, (_, i) => ({
-    id: `${Date.now()}-${i}`,
-    defId: 'goblin',
-    distanceTravelled: 0,
-    hp: ENEMY_DEFS.goblin.hp,
-  }));
-}
 
 export function PlayPage() {
   const [runState, setRunState] = useState<RunState>(createInitialRunState);
@@ -35,9 +27,14 @@ export function PlayPage() {
       if (lastTsRef.current !== null) {
         const rawDt = (ts - lastTsRef.current) / 1000;
         const dt = Math.min(rawDt, MAX_DT);
-        // Order: move enemies first (tickEnemies), then resolve tower combat
-        // (tickCombat) so towers see updated positions before firing this frame.
-        setRunState((s) => tickCombat(tickEnemies(s, STARTER_MAP.path, dt), STARTER_MAP.path, dt));
+        // Order per frame:
+        //   1. tickWaves — emit pending spawns (enemies start at distance 0)
+        //   2. tickEnemies — move enemies and detect leaks / gameover
+        //   3. tickCombat — towers fire on updated positions
+        setRunState((s) => {
+          if (s.phase === 'gameover') return s;
+          return tickCombat(tickEnemies(tickWaves(s, dt), STARTER_MAP.path, dt), STARTER_MAP.path, dt);
+        });
       }
       lastTsRef.current = ts;
       rafId = requestAnimationFrame(loop);
@@ -50,10 +47,8 @@ export function PlayPage() {
     };
   }, []);
 
-  function handleSpawnWave() {
-    setRunState((s) =>
-      spawnWave({ ...s, phase: 'combat' }, buildDebugWave()),
-    );
+  function handleStartWave() {
+    setRunState((s) => startWave(s));
   }
 
   function handleReset() {
@@ -69,27 +64,45 @@ export function PlayPage() {
   const towerDefs = Object.values(TOWER_DEFS);
   const selectedDef = TOWER_DEFS[selectedTowerId];
 
+  const isStartWaveDisabled =
+    runState.phase !== 'prep' ||
+    runState.waveIndex >= WAVES.length;
+
+  const waveDisplay = `${Math.min(runState.waveIndex + 1, WAVES.length)} / ${WAVES.length}`;
+
   return (
     <section className="flex flex-col gap-4" style={{ height: 'calc(100vh - 8rem)' }}>
+      {/* HUD */}
       <div className="flex items-center gap-6 flex-wrap">
         <h2 className="text-xl font-semibold">Play</h2>
         <span className="text-sm text-gray-400">
-          phase: <strong>{runState.phase}</strong>
-        </span>
-        <span className="text-sm text-gray-400">
-          base hp: <strong>{runState.baseHp}</strong>
-        </span>
-        <span className="text-sm text-gray-400">
-          enemies: <strong>{runState.enemies.length}</strong>
+          Wave: <strong>{waveDisplay}</strong>
         </span>
         <span className="text-sm text-yellow-400">
-          gold: <strong>{runState.gold}</strong>
+          Gold: <strong>{runState.gold}</strong>
         </span>
+        <span className="text-sm text-red-400">
+          Base HP: <strong>{runState.baseHp}</strong>
+        </span>
+        <span className="text-sm text-gray-400">
+          Phase: <strong>{runState.phase}</strong>
+        </span>
+        {runState.phase === 'gameover' && (
+          <span className="text-sm font-bold text-red-500 uppercase tracking-widest">
+            GAME OVER
+          </span>
+        )}
         <button
-          className="px-3 py-1 text-sm bg-blue-600 rounded hover:bg-blue-500"
-          onClick={handleSpawnWave}
+          className={[
+            'px-3 py-1 text-sm rounded',
+            isStartWaveDisabled
+              ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-500 text-white',
+          ].join(' ')}
+          onClick={handleStartWave}
+          disabled={isStartWaveDisabled}
         >
-          Spawn wave
+          Start wave
         </button>
         <button
           className="px-3 py-1 text-sm bg-gray-600 rounded hover:bg-gray-500"
@@ -98,6 +111,8 @@ export function PlayPage() {
           Reset
         </button>
       </div>
+
+      {/* Tower selector */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm text-gray-400">Towers:</span>
         {towerDefs.map((def) => {
@@ -125,6 +140,8 @@ export function PlayPage() {
           </span>
         )}
       </div>
+
+      {/* Canvas */}
       <div className="flex-1 min-h-0">
         <GameCanvas
           map={STARTER_MAP}
