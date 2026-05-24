@@ -10,7 +10,7 @@ import (
 )
 
 func TestReadyEndpointNilPool(t *testing.T) {
-	handler := NewHandler(nil, Config{}, realtime.NewHub())
+	handler := NewHandler(nil, Config{}, realtime.NewHub(), nil)
 
 	req := httptest.NewRequest(http.MethodGet, "/ready", nil)
 	rec := httptest.NewRecorder()

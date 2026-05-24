@@ -52,7 +52,7 @@ func TestTwoClientsReceiveBroadcast(t *testing.T) {
 	hub := realtime.NewHub()
 	t.Cleanup(hub.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil))
 	t.Cleanup(srv.Close)
 
 	c1 := dialWS(t, srv, "/api/ws?room=ac1-test")
@@ -119,7 +119,7 @@ func TestDisconnectOneClientRemainsWorking(t *testing.T) {
 	hub := realtime.NewHub()
 	t.Cleanup(hub.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil))
 	t.Cleanup(srv.Close)
 
 	goroutinesBefore := runtime.NumGoroutine()
@@ -177,7 +177,7 @@ func TestWsMissingRoom(t *testing.T) {
 	hub := realtime.NewHub()
 	t.Cleanup(hub.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil))
 	t.Cleanup(srv.Close)
 
 	url := "ws" + strings.TrimPrefix(srv.URL, "http") + "/api/ws"

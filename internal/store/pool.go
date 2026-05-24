@@ -41,3 +41,11 @@ func (p *Pool) Close() {
 	}
 	p.pool.Close()
 }
+
+// DB returns the underlying *pgxpool.Pool, or nil if not connected.
+func (p *Pool) DB() *pgxpool.Pool {
+	if p == nil {
+		return nil
+	}
+	return p.pool
+}

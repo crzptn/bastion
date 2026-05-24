@@ -11,6 +11,7 @@ import (
 	"github.com/joakimcarlsson/minmux/router"
 
 	"github.com/JoakimCarlsson/bastion/internal/health"
+	"github.com/JoakimCarlsson/bastion/internal/lobby"
 	"github.com/JoakimCarlsson/bastion/internal/realtime"
 	"github.com/JoakimCarlsson/bastion/internal/store"
 )
@@ -23,7 +24,12 @@ type Config struct {
 }
 
 // NewHandler returns the API HTTP handler wired with minmux.
-func NewHandler(pool *store.Pool, cfg Config, hub *realtime.Hub) http.Handler {
+func NewHandler(
+	pool *store.Pool,
+	cfg Config,
+	hub *realtime.Hub,
+	lobbies *lobby.Service,
+) http.Handler {
 	if cfg.Version != "" {
 		health.Version = cfg.Version
 	}
@@ -43,6 +49,9 @@ func NewHandler(pool *store.Pool, cfg Config, hub *realtime.Hub) http.Handler {
 	registerHealth(r)
 	registerReady(r, pool)
 	registerRealtime(r, hub)
+	if lobbies != nil {
+		registerLobby(r, lobbies)
+	}
 	mountSPA(r, cfg.WebDist)
 
 	return r

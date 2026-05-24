@@ -10,6 +10,7 @@ import (
 	"time"
 
 	bhttp "github.com/JoakimCarlsson/bastion/internal/http"
+	"github.com/JoakimCarlsson/bastion/internal/lobby"
 	"github.com/JoakimCarlsson/bastion/internal/realtime"
 	"github.com/JoakimCarlsson/bastion/internal/store"
 )
@@ -45,6 +46,12 @@ func main() {
 	hub := realtime.NewHub()
 	defer hub.Close()
 
+	var lobbySvc *lobby.Service
+	if pool.DB() != nil {
+		lobbyStore := lobby.NewPgxStore(pool.DB())
+		lobbySvc = lobby.NewService(lobbyStore)
+	}
+
 	corsOrigin := os.Getenv("CORS_ORIGIN")
 	version := os.Getenv("API_VERSION")
 	if version == "" {
@@ -55,7 +62,7 @@ func main() {
 		CORSOrigin: corsOrigin,
 		Version:    version,
 		WebDist:    os.Getenv("WEB_DIST"),
-	}, hub)
+	}, hub, lobbySvc)
 
 	srv := &http.Server{
 		Addr:    addr,

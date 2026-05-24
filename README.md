@@ -169,6 +169,55 @@ docker compose up --build
 
 API on `:8080`, SPA dev server via `cd web && bun run dev` on `:5173`. `make help` lists every other target.
 
+## Lobby API (M3)
+
+Six REST endpoints for creating and managing pre-game lobbies. All require a running API with a database connection (`DATABASE_URL` set).
+
+```bash
+# Create a lobby (returns id, host is automatically slot 0)
+curl -s -X POST http://localhost:8080/api/lobbies \
+  -H "Content-Type: application/json" \
+  -d '{"name":"My Lobby","host_player_id":"player-1","display_name":"Alice","max_players":4}'
+
+# List open lobbies
+curl -s http://localhost:8080/api/lobbies
+
+# Get a specific lobby by id
+curl -s http://localhost:8080/api/lobbies/<LOBBY_ID>
+
+# Second player joins (returns updated lobby with 2 players)
+curl -s -X POST http://localhost:8080/api/lobbies/<LOBBY_ID>/join \
+  -H "Content-Type: application/json" \
+  -d '{"player_id":"player-2","display_name":"Bob"}'
+
+# Player leaves
+curl -s -X POST http://localhost:8080/api/lobbies/<LOBBY_ID>/leave \
+  -H "Content-Type: application/json" \
+  -d '{"player_id":"player-2"}'
+
+# Host starts the game (transitions to in_game, generates session_id)
+curl -s -X POST http://localhost:8080/api/lobbies/<LOBBY_ID>/start \
+  -H "Content-Type: application/json" \
+  -d '{"player_id":"player-1"}'
+```
+
+Error codes: `404` not found, `409` lobby full / already joined / not open / too few players, `403` not host, `400` missing required fields.
+
+Response shape for all endpoints:
+```json
+{
+  "id": "...",
+  "name": "My Lobby",
+  "host_player_id": "player-1",
+  "max_players": 4,
+  "status": "open",
+  "session_id": "",
+  "players": [{"player_id": "player-1", "display_name": "Alice", "slot": 0, "joined_at": "..."}],
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
