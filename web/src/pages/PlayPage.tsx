@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { STARTER_MAP, TOWER_DEFS, WAVES, useGameSession } from '../game';
 import { createAudioService, useGameAudio } from '../game/audio';
 import { GameCanvasThree } from '../game/render/GameCanvasThree';
@@ -92,6 +93,9 @@ function HowToPlay() {
 // PlayPage
 // ---------------------------------------------------------------------------
 export function PlayPage() {
+  const [searchParams] = useSearchParams();
+  const lobbyId = searchParams.get('lobby');
+
   const { state, startWave, placeTowerAt, restart, selectedTowerId, setSelectedTowerId } =
     useGameSession();
 
@@ -143,6 +147,14 @@ export function PlayPage() {
 
   return (
     <section className="flex flex-col gap-3" style={{ height: 'calc(100vh - 8rem)' }}>
+      {/* Lobby co-op session banner (stub — real sync in #16) */}
+      {lobbyId && (
+        <div className="rounded bg-blue-900 border border-blue-700 px-4 py-2 text-sm text-blue-200 flex items-center gap-2">
+          <span className="font-medium">Co-op session:</span>
+          <code className="text-blue-100 text-xs">{lobbyId}</code>
+          <span className="text-blue-400 text-xs ml-auto">Live sync coming in a future update.</span>
+        </div>
+      )}
       {/* HUD */}
       <div className="flex items-center gap-6 flex-wrap">
         <h2 className="text-xl font-semibold">Play</h2>
