@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/JoakimCarlsson/bastion/internal/realtime"
 )
 
 func TestSPAIndexServed(t *testing.T) {
@@ -14,7 +16,7 @@ func TestSPAIndexServed(t *testing.T) {
 		t.Fatalf("write index.html: %v", err)
 	}
 
-	handler := NewHandler(nil, Config{WebDist: dist})
+	handler := NewHandler(nil, Config{WebDist: dist}, realtime.NewHub())
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -29,7 +31,7 @@ func TestSPAIndexServed(t *testing.T) {
 }
 
 func TestHealthWithoutSPA(t *testing.T) {
-	handler := NewHandler(nil, Config{WebDist: t.TempDir()})
+	handler := NewHandler(nil, Config{WebDist: t.TempDir()}, realtime.NewHub())
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
