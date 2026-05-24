@@ -1,5 +1,12 @@
+import { useState } from 'react';
 import { STARTER_MAP, TOWER_DEFS, WAVES, useGameSession } from '../game';
+import { createAudioService, useGameAudio } from '../game/audio';
 import { GameCanvasThree } from '../game/render/GameCanvasThree';
+
+// ---------------------------------------------------------------------------
+// Module-level AudioService singleton (created once per module load; lazy ctx)
+// ---------------------------------------------------------------------------
+const audioService = createAudioService();
 
 // ---------------------------------------------------------------------------
 // EndScreen overlay — rendered over the canvas on 'gameover' or 'victory'
@@ -88,6 +95,13 @@ export function PlayPage() {
   const { state, startWave, placeTowerAt, restart, selectedTowerId, setSelectedTowerId } =
     useGameSession();
 
+  // Audio volume UI state — initialised from the service (which reads localStorage)
+  const [volume, setVolume] = useState<number>(() => Math.round(audioService.getMasterVolume() * 100));
+  const [muted, setMuted] = useState<boolean>(() => audioService.getMuted());
+
+  // Wire audio hook — diffs state each render and fires SFX
+  const { onUserGesture, onTowerPlaced, onWaveStart } = useGameAudio(state, audioService);
+
   const towerDefs = Object.values(TOWER_DEFS);
   const selectedDef = TOWER_DEFS[selectedTowerId];
 
@@ -97,6 +111,35 @@ export function PlayPage() {
   const waveDisplay = `${Math.min(state.waveIndex + 1, WAVES.length)} / ${WAVES.length}`;
 
   const showEndScreen = state.phase === 'gameover' || state.phase === 'victory';
+
+  function handleVolumeChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const pct = Number(e.target.value);
+    setVolume(pct);
+    audioService.setMasterVolume(pct / 100);
+  }
+
+  function handleMuteToggle() {
+    const next = !muted;
+    setMuted(next);
+    audioService.setMuted(next);
+  }
+
+  function handleStartWave() {
+    onUserGesture();
+    onWaveStart();
+    startWave();
+  }
+
+  function handleTowerSelect(id: string) {
+    onUserGesture();
+    setSelectedTowerId(id);
+  }
+
+  function handleCellClick(pos: { x: number; y: number }) {
+    onUserGesture();
+    placeTowerAt(pos);
+    onTowerPlaced();
+  }
 
   return (
     <section className="flex flex-col gap-3" style={{ height: 'calc(100vh - 8rem)' }}>
@@ -122,7 +165,7 @@ export function PlayPage() {
               ? 'bg-gray-700 text-gray-500 cursor-not-allowed'
               : 'bg-blue-600 hover:bg-blue-500 text-white',
           ].join(' ')}
-          onClick={startWave}
+          onClick={handleStartWave}
           disabled={isStartWaveDisabled}
         >
           Start wave
@@ -133,6 +176,37 @@ export function PlayPage() {
         >
           New game
         </button>
+
+        {/* Audio controls */}
+        <div className="flex items-center gap-2 ml-auto">
+          <label htmlFor="volume-slider" className="text-xs text-gray-400 sr-only">
+            Volume
+          </label>
+          <input
+            id="volume-slider"
+            type="range"
+            min={0}
+            max={100}
+            value={volume}
+            onChange={handleVolumeChange}
+            className="w-20 accent-blue-500 cursor-pointer"
+            aria-label="Master volume"
+          />
+          <span className="text-xs text-gray-400 w-8 text-right">{volume}%</span>
+          <button
+            aria-pressed={muted}
+            onClick={handleMuteToggle}
+            className={[
+              'px-2 py-1 text-xs rounded border transition-colors',
+              muted
+                ? 'border-red-500 bg-red-900 text-red-200'
+                : 'border-gray-600 bg-gray-700 text-gray-300 hover:bg-gray-600',
+            ].join(' ')}
+            title={muted ? 'Unmute' : 'Mute'}
+          >
+            {muted ? 'Muted' : 'Sound'}
+          </button>
+        </div>
       </div>
 
       {/* Tower selector */}
@@ -144,7 +218,7 @@ export function PlayPage() {
           return (
             <button
               key={def.id}
-              onClick={() => setSelectedTowerId(def.id)}
+              onClick={() => handleTowerSelect(def.id)}
               className={[
                 'px-3 py-1 text-sm rounded border transition-colors',
                 isSelected
@@ -178,7 +252,7 @@ export function PlayPage() {
           map={STARTER_MAP}
           towers={state.towers}
           enemies={state.enemies}
-          onCellClick={placeTowerAt}
+          onCellClick={handleCellClick}
         />
       </div>
 
