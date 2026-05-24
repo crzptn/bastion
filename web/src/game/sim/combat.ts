@@ -40,6 +40,8 @@ export function tickCombat(
     state.towers.map((t) => [t.id, t.cooldownRemaining]),
   );
   const firedSet = new Set<string>();
+  // Maps tower id → enemy id that was targeted this tick (for VFX tracers).
+  const firedTargetMap = new Map<string, string>();
 
   let goldEarned = 0;
 
@@ -91,6 +93,7 @@ export function tickCombat(
     // Reset cooldown to 1/fireRate after firing (once per tick)
     newCooldowns.set(tower.id, 1 / def.fireRate);
     firedSet.add(tower.id);
+    firedTargetMap.set(tower.id, bestEnemy.id);
   }
 
   // If nothing changed, return same reference to avoid unnecessary re-renders.
@@ -119,7 +122,12 @@ export function tickCombat(
   const nextTowers: TowerInstance[] = state.towers.map((t) => {
     const newCd = newCooldowns.get(t.id)!;
     if (firedSet.has(t.id)) {
-      return { ...t, cooldownRemaining: newCd, lastFiredAt: nowMs };
+      return {
+        ...t,
+        cooldownRemaining: newCd,
+        lastFiredAt: nowMs,
+        lastFiredTargetId: firedTargetMap.get(t.id),
+      };
     }
     return newCd === t.cooldownRemaining ? t : { ...t, cooldownRemaining: newCd };
   });

@@ -46,6 +46,8 @@ import { THEME } from './theme';
 import { ENEMY_MESHES, PLACEHOLDER_ENEMY_MESH } from './meshes/enemies';
 import { PLACEHOLDER_TOWER_MESH, TOWER_MESHES } from './meshes/towers';
 import { HitBurst } from './meshes/hitBurst';
+import { TracerField, pushTracer } from './meshes/tracers';
+import type { TracerSlot } from './meshes/tracers';
 
 // ---------------------------------------------------------------------------
 // Tile kind type
@@ -262,6 +264,51 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
   const pathCellSet = useMemo(() => buildPathCellSet(path), [path]);
   const { gridToWorld, worldToCell } = useMemo(() => makeHelpers(cols, rows), [cols, rows]);
 
+  // ---------------------------------------------------------------------------
+  // Tracer ring buffer — ref so TracerField reads it each frame without re-render.
+  // ---------------------------------------------------------------------------
+  const tracersRef = useRef<TracerSlot[]>([]);
+
+  // Track (towerId → lastFiredAt) to detect new shots per render.
+  const prevFiredAt = useRef<Map<string, number>>(new Map());
+
+  // Build an enemy lookup by id for target position snapshot.
+  const enemyById = useMemo(
+    () => new Map(enemies.map((e) => [e.id, e])),
+    [enemies],
+  );
+
+  useEffect(() => {
+    for (const tower of towers) {
+      const { lastFiredAt, lastFiredTargetId } = tower;
+      if (lastFiredAt === undefined || lastFiredTargetId === undefined) continue;
+
+      // Only emit if this (id, lastFiredAt) pair is new
+      const prev = prevFiredAt.current.get(tower.id);
+      if (prev === lastFiredAt) continue;
+      prevFiredAt.current.set(tower.id, lastFiredAt);
+
+      // Tower origin: grid centre + buildable tile top + a small lift so it exits the tower
+      const [ox, , oz] = gridToWorld(tower.x, tower.y);
+      const oy = tileTopY('buildable') + 0.4;
+
+      // Target position: use enemy current position if still alive, else skip
+      const targetEnemy = enemyById.get(lastFiredTargetId);
+      if (!targetEnemy) continue;
+
+      const tPos = enemyPosition(targetEnemy, path);
+      const [tx, , tz] = gridToWorld(tPos.x, tPos.y);
+      const ty = tileTopY('path') + ENEMY_LIFT;
+
+      pushTracer(tracersRef.current, {
+        id: `${tower.id}-${lastFiredAt}`,
+        originX: ox, originY: oy, originZ: oz,
+        targetX: tx, targetY: ty, targetZ: tz,
+        startMs: lastFiredAt,
+      });
+    }
+  }, [towers, enemyById, gridToWorld, path]);
+
   // Pre-build per-cell tile data to avoid repeated work in render.
   // kind drives geometry selection, castShadow, and Y placement.
   const tileMeshes = useMemo(() => {
@@ -449,6 +496,9 @@ function Scene({ map, towers, enemies, onCellClick }: SceneProps) {
         <planeGeometry args={[cols, rows]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
+
+      {/* Tracer VFX — pooled meshes driven by tracersRef, picked up by Bloom below */}
+      <TracerField tracersRef={tracersRef} />
 
       <EffectComposer>
         <Bloom intensity={0.6} luminanceThreshold={0.6} mipmapBlur />
