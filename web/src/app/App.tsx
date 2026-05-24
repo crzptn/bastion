@@ -2,6 +2,7 @@ import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
 
 import { HomePage } from '../pages/HomePage';
 import { LobbyPage } from '../pages/LobbyPage';
+import { LobbyRoomPage } from '../pages/LobbyRoomPage';
 import { PlayPage } from '../pages/PlayPage';
 
 const navLinkClass =
@@ -30,6 +31,7 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/play" element={<PlayPage />} />
             <Route path="/lobby" element={<LobbyPage />} />
+            <Route path="/lobby/:id" element={<LobbyRoomPage />} />
           </Routes>
         </main>
       </div>
