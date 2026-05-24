@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/JoakimCarlsson/bastion/internal/health"
+	"github.com/JoakimCarlsson/bastion/internal/realtime"
 )
 
 func TestHealthEndpoint(t *testing.T) {
@@ -14,7 +15,7 @@ func TestHealthEndpoint(t *testing.T) {
 	t.Cleanup(func() { health.Version = prev })
 
 	health.Version = "test-1.0"
-	handler := NewHandler(nil, Config{})
+	handler := NewHandler(nil, Config{}, realtime.NewHub())
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()

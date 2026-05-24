@@ -10,6 +10,7 @@ import (
 	"time"
 
 	bhttp "github.com/JoakimCarlsson/bastion/internal/http"
+	"github.com/JoakimCarlsson/bastion/internal/realtime"
 	"github.com/JoakimCarlsson/bastion/internal/store"
 )
 
@@ -41,6 +42,9 @@ func main() {
 		}
 	}
 
+	hub := realtime.NewHub()
+	defer hub.Close()
+
 	corsOrigin := os.Getenv("CORS_ORIGIN")
 	version := os.Getenv("API_VERSION")
 	if version == "" {
@@ -51,7 +55,7 @@ func main() {
 		CORSOrigin: corsOrigin,
 		Version:    version,
 		WebDist:    os.Getenv("WEB_DIST"),
-	})
+	}, hub)
 
 	srv := &http.Server{
 		Addr:    addr,

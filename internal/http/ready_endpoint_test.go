@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/JoakimCarlsson/bastion/internal/realtime"
 )
 
 func TestReadyEndpointNilPool(t *testing.T) {
-	handler := NewHandler(nil, Config{})
+	handler := NewHandler(nil, Config{}, realtime.NewHub())
 
 	req := httptest.NewRequest(http.MethodGet, "/ready", nil)
 	rec := httptest.NewRecorder()
