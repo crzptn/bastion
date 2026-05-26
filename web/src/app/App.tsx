@@ -3,6 +3,7 @@ import { BrowserRouter, Link, Route, Routes, useNavigate } from 'react-router-do
 import { clearSession } from '../lib/authStore';
 import { useAuth } from '../lib/useAuth';
 import { HomePage } from '../pages/HomePage';
+import { LeaderboardPage } from '../pages/LeaderboardPage';
 import { LobbyPage } from '../pages/LobbyPage';
 import { LobbyRoomPage } from '../pages/LobbyRoomPage';
 import { LoginPage } from '../pages/LoginPage';
@@ -71,6 +72,9 @@ export function App() {
             <Link to="/lobby" className={navLinkClass}>
               Lobby
             </Link>
+            <Link to="/leaderboard" className={navLinkClass}>
+              Leaderboard
+            </Link>
             <AuthNav />
           </nav>
         </header>
@@ -80,6 +84,7 @@ export function App() {
             <Route path="/play" element={<PlayPage />} />
             <Route path="/lobby" element={<LobbyPage />} />
             <Route path="/lobby/:id" element={<LobbyRoomPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
           </Routes>
