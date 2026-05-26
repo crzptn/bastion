@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { STARTER_MAP, TOWER_DEFS, WAVES, useGameSession } from '../game';
 import { createAudioService, useGameAudio } from '../game/audio';
 import { GameCanvasThree } from '../game/render/GameCanvasThree';
 import { useSessionMirror } from '../game/useSessionMirror';
+import { submitScore } from '../lib/api/scores';
+import { useAuth } from '../lib/useAuth';
 import { getOrCreatePlayerId } from '../lib/playerIdentity';
 
 // ---------------------------------------------------------------------------
@@ -14,13 +16,31 @@ const audioService = createAudioService();
 // ---------------------------------------------------------------------------
 // EndScreen overlay — rendered over the canvas on 'gameover' or 'victory'
 // ---------------------------------------------------------------------------
+
+type SubmitState = 'idle' | 'submitting' | 'submitted' | 'error';
+
 interface EndScreenProps {
   phase: 'gameover' | 'victory';
   waveIndex: number;
   onRestart: () => void;
+  // Score submission props — only relevant in solo mode
+  signedIn: boolean;
+  submitState: SubmitState;
+  submitError: string;
+  leaderboardHref: string;
+  onSubmit: () => void;
 }
 
-function EndScreen({ phase, waveIndex, onRestart }: EndScreenProps) {
+function EndScreen({
+  phase,
+  waveIndex,
+  onRestart,
+  signedIn,
+  submitState,
+  submitError,
+  leaderboardHref,
+  onSubmit,
+}: EndScreenProps) {
   const isGameOver = phase === 'gameover';
   const wavesCleared = WAVES.length;
 
@@ -49,6 +69,42 @@ function EndScreen({ phase, waveIndex, onRestart }: EndScreenProps) {
             </p>
           </>
         )}
+
+        {/* Score submission UI */}
+        {signedIn ? (
+          <>
+            {submitState === 'idle' && (
+              <button
+                className="px-5 py-2 bg-green-700 hover:bg-green-600 text-white font-semibold rounded transition-colors"
+                onClick={onSubmit}
+              >
+                Submit score
+              </button>
+            )}
+            {submitState === 'submitting' && (
+              <span className="text-slate-400 text-sm">Submitting…</span>
+            )}
+            {submitState === 'submitted' && (
+              <Link
+                to={leaderboardHref}
+                className="text-green-400 hover:text-green-300 text-sm underline"
+              >
+                Submitted — view leaderboard
+              </Link>
+            )}
+            {submitState === 'error' && (
+              <p className="text-red-400 text-sm text-center">Error: {submitError}</p>
+            )}
+          </>
+        ) : (
+          <Link
+            to="/login"
+            className="text-slate-400 hover:text-slate-200 text-sm underline"
+          >
+            Sign in to submit score
+          </Link>
+        )}
+
         <button
           className="mt-2 px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded transition-colors"
           onClick={onRestart}
@@ -111,6 +167,29 @@ export function PlayPage() {
   const selectedTowerId = soloSession.selectedTowerId;
   const setSelectedTowerId = soloSession.setSelectedTowerId;
 
+  // Auth state for score submission (solo mode only)
+  const { signedIn, token } = useAuth();
+
+  // Run start timestamp — set when phase transitions to 'active'
+  const runStartRef = useRef<number | null>(null);
+
+  // Score submission state
+  const [submitState, setSubmitState] = useState<SubmitState>('idle');
+  const [submitError, setSubmitError] = useState<string>('');
+
+  // Track run start time: when phase moves to 'combat', record timestamp
+  useEffect(() => {
+    if (state.phase === 'combat' && runStartRef.current === null) {
+      runStartRef.current = Date.now();
+    }
+    // Reset on new game (phase goes back to 'prep')
+    if (state.phase === 'prep') {
+      runStartRef.current = null;
+      setSubmitState('idle');
+      setSubmitError('');
+    }
+  }, [state.phase]);
+
   // Audio volume UI state — initialised from the service (which reads localStorage)
   const [volume, setVolume] = useState<number>(() => Math.round(audioService.getMasterVolume() * 100));
   const [muted, setMuted] = useState<boolean>(() => audioService.getMuted());
@@ -127,6 +206,24 @@ export function PlayPage() {
   const waveDisplay = `${Math.min(state.waveIndex + 1, WAVES.length)} / ${WAVES.length}`;
 
   const showEndScreen = state.phase === 'gameover' || state.phase === 'victory';
+
+  async function handleSubmitScore() {
+    if (!token || isCoopMode) return;
+    const durationMs = runStartRef.current !== null ? Date.now() - runStartRef.current : 0;
+    setSubmitState('submitting');
+    try {
+      await submitScore(token, {
+        wave_reached: state.waveIndex,
+        base_hp_left: state.baseHp,
+        duration_ms: durationMs,
+        coop: false,
+      });
+      setSubmitState('submitted');
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : 'Submit failed');
+      setSubmitState('error');
+    }
+  }
 
   function handleVolumeChange(e: React.ChangeEvent<HTMLInputElement>) {
     const pct = Number(e.target.value);
@@ -285,6 +382,11 @@ export function PlayPage() {
             phase={state.phase as 'gameover' | 'victory'}
             waveIndex={state.waveIndex}
             onRestart={soloSession.restart}
+            signedIn={!isCoopMode && signedIn}
+            submitState={submitState}
+            submitError={submitError}
+            leaderboardHref="/leaderboard"
+            onSubmit={() => { void handleSubmitScore(); }}
           />
         )}
         <GameCanvasThree

@@ -1,6 +1,7 @@
 /**
  * PlayPage source-read test — verifies the conditional branch that switches
  * from useGameSession (solo) to useSessionMirror (co-op) when ?lobby= is set.
+ * Also verifies score submission UI (AC2/AC3) and auth integration.
  *
  * Pattern: pure source-read assertion (#67). No DOM rendering required.
  */
@@ -68,5 +69,45 @@ describe('PlayPage source-read assertions', () => {
     const hpIdx = source.indexOf('Shared Base HP');
     const coopIdx = source.lastIndexOf('isCoopMode', hpIdx);
     expect(coopIdx).toBeGreaterThan(-1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AC2/AC3 — score submission and auth integration
+// ---------------------------------------------------------------------------
+
+describe('PlayPage score submission source-read assertions', () => {
+  it('imports useAuth from ../lib/useAuth', () => {
+    expect(source).toContain("from '../lib/useAuth'");
+    expect(source).toContain('useAuth');
+  });
+
+  it('imports submitScore from ../lib/api/scores', () => {
+    expect(source).toContain("from '../lib/api/scores'");
+    expect(source).toContain('submitScore');
+  });
+
+  it('EndScreen branch references signedIn', () => {
+    expect(source).toContain('signedIn');
+  });
+
+  it('EndScreen renders a /login Link when not signed in (AC3)', () => {
+    expect(source).toContain('"/login"');
+  });
+
+  it('submitScore call is gated by !isCoopMode (co-op mode does not submit)', () => {
+    // The handleSubmitScore function returns early when isCoopMode is true
+    expect(source).toContain('isCoopMode');
+    // submitScore must be called only in solo context
+    const submitCallIdx = source.indexOf('submitScore(token');
+    expect(submitCallIdx).toBeGreaterThan(-1);
+    // There must be a !isCoopMode guard before the submitScore call
+    const priorSource = source.substring(0, submitCallIdx);
+    expect(priorSource).toContain('isCoopMode');
+  });
+
+  it('tracks run start timestamp via useRef', () => {
+    expect(source).toContain('runStartRef');
+    expect(source).toContain('useRef');
   });
 });

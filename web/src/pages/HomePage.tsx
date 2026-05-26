@@ -16,6 +16,12 @@ export function HomePage() {
         >
           Start a single-player run →
         </Link>
+        <Link
+          to="/leaderboard"
+          className="mt-3 inline-block text-sm text-slate-400 hover:text-slate-200 underline ml-4"
+        >
+          View leaderboard
+        </Link>
       </div>
       <HealthStatus />
     </section>
