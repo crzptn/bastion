@@ -35,6 +35,7 @@ func NewHandler(
 	lobbies *lobby.Service,
 	sessions *session.Manager,
 	usersSvc *users.Service,
+	scoresSvc scoresService,
 ) http.Handler {
 	if cfg.Version != "" {
 		health.Version = cfg.Version
@@ -67,6 +68,9 @@ func NewHandler(
 			ttl = 24 * time.Hour
 		}
 		registerUsers(r, usersSvc, cfg.JWTSecret, ttl)
+	}
+	if scoresSvc != nil && len(cfg.JWTSecret) > 0 {
+		registerScores(r, scoresSvc, cfg.JWTSecret)
 	}
 	mountSPA(r, cfg.WebDist)
 
