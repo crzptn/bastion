@@ -2,9 +2,8 @@ package users_test
 
 import (
 	"context"
+	"strings"
 	"testing"
-
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/JoakimCarlsson/bastion/internal/users"
 )
@@ -176,21 +175,14 @@ func TestService_StoresOnlyHash(t *testing.T) {
 		t.Fatalf("Register: %v", err)
 	}
 
-	// password_hash must start with bcrypt prefix
-	if len(u.PasswordHash) < 4 {
-		t.Fatalf("PasswordHash too short: %q", u.PasswordHash)
-	}
-	prefix := u.PasswordHash[:4]
-	if prefix != "$2a$" && prefix != "$2b$" {
-		t.Errorf(
-			"PasswordHash does not look like bcrypt: %q",
-			u.PasswordHash[:7],
-		)
+	// Must be an argon2id PHC string
+	if !strings.HasPrefix(u.PasswordHash, "$argon2id$") {
+		t.Errorf("PasswordHash does not look like argon2id: %q", u.PasswordHash)
 	}
 
-	// bcrypt.CompareHashAndPassword must succeed
-	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(plaintext)); err != nil {
-		t.Errorf("bcrypt.CompareHashAndPassword failed: %v", err)
+	// Verify via authentication using the stored hash
+	if _, err := svc.Authenticate(context.Background(), "charlie", plaintext); err != nil {
+		t.Errorf("Authenticate failed with stored hash: %v", err)
 	}
 
 	// plaintext must not be stored anywhere in the hash
