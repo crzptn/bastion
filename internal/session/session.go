@@ -1,6 +1,17 @@
 // Package session owns RunState, the fixed-step tick loop, and the session
 // manager for server-authoritative co-op multiplayer.
 //
+// # Session resource model
+//
+// Gold, BaseHP, and lives are a single shared pool per session. There is no
+// per-player accounting. Every snapshot broadcasts the same values to all
+// subscribers of the session room.
+//
+// Intents submitted with a PlayerID that is not in the session's playerIDs
+// slice are silently dropped before any state mutation occurs. An empty
+// PlayerID is also rejected. This ensures that only the two registered
+// co-op players can affect the shared pool.
+//
 // No net/http imports — this is a pure domain package.
 package session
 
@@ -73,6 +84,20 @@ const (
 	IntentKindPlaceTower = "place_tower"
 	IntentKindStartWave  = "start_wave"
 )
+
+// isMember reports whether playerID is in the session's registered player list.
+// An empty playerID is never a member.
+func (s *session) isMember(playerID string) bool {
+	if playerID == "" {
+		return false
+	}
+	for _, id := range s.playerIDs {
+		if id == playerID {
+			return true
+		}
+	}
+	return false
+}
 
 // createInitialRunState returns the default RunState for a new session,
 // matching createInitialRunState() in web/src/game/constants.ts.

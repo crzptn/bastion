@@ -168,7 +168,7 @@ func (m *Manager) runSession(ctx context.Context, sess *session) {
 			for {
 				select {
 				case intent := <-sess.intents:
-					state = m.applyIntent(state, intent)
+					state = m.applyIntent(sess, state, intent)
 				default:
 					break drainIntents
 				}
@@ -212,7 +212,16 @@ func (m *Manager) runSession(ctx context.Context, sess *session) {
 }
 
 // applyIntent validates and applies one Intent to the current state.
-func (m *Manager) applyIntent(state RunState, intent Intent) RunState {
+// Intents from players not in sess.playerIDs are silently dropped.
+func (m *Manager) applyIntent(
+	sess *session,
+	state RunState,
+	intent Intent,
+) RunState {
+	// Membership check: only registered session players may mutate shared state.
+	if !sess.isMember(intent.PlayerID) {
+		return state
+	}
 	switch intent.Kind {
 	case IntentKindPlaceTower:
 		newState, placed := placeTower(state, intent.DefID, intent.X, intent.Y)
