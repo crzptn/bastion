@@ -5,11 +5,13 @@
  * Pattern: pure source-read assertion (#67). No DOM rendering required.
  */
 
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
 
-const source = readFileSync(resolve(import.meta.dir, 'PlayPage.tsx'), 'utf-8');
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const source = readFileSync(resolve(__dirname, 'PlayPage.tsx'), 'utf-8');
 
 describe('PlayPage source-read assertions', () => {
   it('imports useSessionMirror', () => {

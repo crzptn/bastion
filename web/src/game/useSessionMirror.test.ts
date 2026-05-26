@@ -5,7 +5,7 @@
  * No React, no DOM — runs in bun:test.
  */
 
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'vitest';
 import { snapshotToRunState } from './useSessionMirror';
 import type { SnapshotPayload } from '../lib/wsOpcodes';
 
