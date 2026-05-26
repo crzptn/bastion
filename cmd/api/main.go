@@ -12,6 +12,7 @@ import (
 	bhttp "github.com/JoakimCarlsson/bastion/internal/http"
 	"github.com/JoakimCarlsson/bastion/internal/lobby"
 	"github.com/JoakimCarlsson/bastion/internal/realtime"
+	"github.com/JoakimCarlsson/bastion/internal/scores"
 	"github.com/JoakimCarlsson/bastion/internal/session"
 	"github.com/JoakimCarlsson/bastion/internal/store"
 	"github.com/JoakimCarlsson/bastion/internal/users"
@@ -71,6 +72,7 @@ func main() {
 
 	// Users / JWT auth — only when database is available.
 	var usersSvc *users.Service
+	var scoresSvc *scores.Service
 	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 	if pool.DB() != nil {
 		if len(jwtSecret) == 0 {
@@ -78,6 +80,9 @@ func main() {
 		}
 		usersStore := users.NewPgxStore(pool.DB())
 		usersSvc = users.NewService(usersStore)
+
+		scoresStore := scores.NewPgxStore(pool.DB())
+		scoresSvc = scores.NewService(scoresStore)
 	}
 
 	var jwtTTL time.Duration
@@ -104,7 +109,7 @@ func main() {
 		WebDist:    os.Getenv("WEB_DIST"),
 		JWTSecret:  jwtSecret,
 		JWTTTL:     jwtTTL,
-	}, hub, lobbySvc, sessionMgr, usersSvc)
+	}, hub, lobbySvc, sessionMgr, usersSvc, scoresSvc)
 
 	srv := &http.Server{
 		Addr:    addr,

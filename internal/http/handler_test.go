@@ -23,6 +23,7 @@ func TestSPAIndexServed(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -42,6 +43,7 @@ func TestHealthWithoutSPA(t *testing.T) {
 		nil,
 		Config{WebDist: t.TempDir()},
 		realtime.NewHub(),
+		nil,
 		nil,
 		nil,
 		nil,
