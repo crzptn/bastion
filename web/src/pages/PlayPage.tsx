@@ -284,7 +284,7 @@ export function PlayPage() {
           <EndScreen
             phase={state.phase as 'gameover' | 'victory'}
             waveIndex={state.waveIndex}
-            onRestart={restart}
+            onRestart={soloSession.restart}
           />
         )}
         <GameCanvasThree
