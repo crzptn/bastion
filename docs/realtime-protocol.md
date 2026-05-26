@@ -132,8 +132,29 @@ Returns the current state_snapshot payload for the session, or 404 with {"error"
 The server runs a fixed-step tick loop at 30 Hz (one tick per 33ms approx).
 A state_snapshot message is broadcast to all room members on every tick.
 
+## Session resource model
+
+Gold, BaseHP, and lives are a **single shared pool** per session. There is no
+per-player accounting. Every `state_snapshot` broadcasts the same values to
+all subscribers of the session room; two connected clients always see identical
+gold and BaseHP.
+
+### Intent membership rule
+
+An intent submitted with a `player_id` that is **not in the session's
+registered playerIDs** is silently dropped before any state mutation occurs.
+An empty `player_id` is also rejected. Only the players who joined the session
+via `POST /api/sessions` (or equivalent lobby hand-off) can affect the shared
+resource pool.
+
+This is enforced server-side in `internal/session/manager.go` →
+`applyIntent`. No error is returned to the sender — the drop is silent so that
+network replays and stale frames cannot cause visible error states on the
+client.
+
 ## Security
 
 - Origin checking is disabled for M3 (InsecureSkipVerify: true).
-- No intent authorisation — any connected client may submit for any player ID.
-- Both of the above are intentional non-goals for this milestone.
+- Intent authorisation is limited to session membership — only registered
+  players may submit intents that mutate shared resources (gold, base HP).
+- Full per-player auth (JWT, session tokens) is out of scope for M3.

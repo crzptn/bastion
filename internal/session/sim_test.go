@@ -250,6 +250,31 @@ func TestTickCombat_TowerKillsEnemy(t *testing.T) {
 	}
 }
 
+// TestTickEnemies_GameoverOnLeak verifies AC3 (unit): when base_hp is 1 and
+// an enemy reaches the end of the path, tickEnemies sets phase=gameover and
+// base_hp=0.
+func TestTickEnemies_GameoverOnLeak(t *testing.T) {
+	state := createInitialRunState()
+	state.Phase = PhaseCombat
+	state.BaseHP = 1
+	// Enemy far past the path end → guaranteed leak on next tick.
+	state.Enemies = []Enemy{
+		{ID: "enemy-0", DefID: "goblin", DistanceTravelled: 9999.0, HP: 30},
+	}
+
+	result := tickEnemies(state, 1.0/30.0)
+
+	if result.Phase != PhaseGameover {
+		t.Errorf("phase: got %q, want %q", result.Phase, PhaseGameover)
+	}
+	if result.BaseHP != 0 {
+		t.Errorf("base_hp: got %d, want 0", result.BaseHP)
+	}
+	if len(result.Enemies) != 0 {
+		t.Errorf("enemies remaining: got %d, want 0", len(result.Enemies))
+	}
+}
+
 // --- helper ---
 
 func firstBuildableCell(t *testing.T) (int, int) {

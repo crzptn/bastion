@@ -51,4 +51,22 @@ describe('PlayPage source-read assertions', () => {
     expect(source).toContain('!isCoopMode');
     expect(source).toContain('soloSession.restart');
   });
+
+  it('gold label is prefixed with Shared in co-op mode', () => {
+    // The HUD must render 'Shared Gold' when isCoopMode is true.
+    expect(source).toContain('Shared Gold');
+    // The conditional must gate on isCoopMode.
+    const goldIdx = source.indexOf('Shared Gold');
+    const coopIdx = source.lastIndexOf('isCoopMode', goldIdx);
+    expect(coopIdx).toBeGreaterThan(-1);
+  });
+
+  it('base HP label is prefixed with Shared in co-op mode', () => {
+    // The HUD must render 'Shared Base HP' when isCoopMode is true.
+    expect(source).toContain('Shared Base HP');
+    // The conditional must gate on isCoopMode.
+    const hpIdx = source.indexOf('Shared Base HP');
+    const coopIdx = source.lastIndexOf('isCoopMode', hpIdx);
+    expect(coopIdx).toBeGreaterThan(-1);
+  });
 });

@@ -187,10 +187,10 @@ export function PlayPage() {
           Wave: <strong>{waveDisplay}</strong>
         </span>
         <span className="text-sm text-yellow-400">
-          Gold: <strong>{state.gold}</strong>
+          {isCoopMode ? 'Shared Gold' : 'Gold'}: <strong>{state.gold}</strong>
         </span>
         <span className="text-sm text-red-400">
-          Base HP: <strong>{state.baseHp}</strong>
+          {isCoopMode ? 'Shared Base HP' : 'Base HP'}: <strong>{state.baseHp}</strong>
         </span>
         <span className="text-sm text-gray-400">
           Phase: <strong>{state.phase}</strong>
