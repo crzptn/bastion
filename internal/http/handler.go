@@ -15,6 +15,7 @@ import (
 	"github.com/JoakimCarlsson/bastion/internal/realtime"
 	"github.com/JoakimCarlsson/bastion/internal/session"
 	"github.com/JoakimCarlsson/bastion/internal/store"
+	"github.com/JoakimCarlsson/bastion/internal/users"
 )
 
 // Config holds HTTP handler options.
@@ -22,6 +23,8 @@ type Config struct {
 	CORSOrigin string
 	Version    string
 	WebDist    string
+	JWTSecret  []byte
+	JWTTTL     time.Duration
 }
 
 // NewHandler returns the API HTTP handler wired with minmux.
@@ -31,6 +34,7 @@ func NewHandler(
 	hub *realtime.Hub,
 	lobbies *lobby.Service,
 	sessions *session.Manager,
+	usersSvc *users.Service,
 ) http.Handler {
 	if cfg.Version != "" {
 		health.Version = cfg.Version
@@ -57,8 +61,27 @@ func NewHandler(
 	if sessions != nil {
 		registerSession(r, sessions)
 	}
+	if usersSvc != nil && len(cfg.JWTSecret) > 0 {
+		ttl := cfg.JWTTTL
+		if ttl <= 0 {
+			ttl = 24 * time.Hour
+		}
+		registerUsers(r, usersSvc, cfg.JWTSecret, ttl)
+	}
 	mountSPA(r, cfg.WebDist)
 
+	return r
+}
+
+// NewHandlerWithUsers builds a minimal router containing only the users/auth
+// routes. Intended for unit tests in internal/http.
+func NewHandlerWithUsers(
+	r *router.Router,
+	svc usersService,
+	secret []byte,
+	ttl time.Duration,
+) http.Handler {
+	registerUsers(r, svc, secret, ttl)
 	return r
 }
 

@@ -14,6 +14,7 @@ import (
 	"github.com/JoakimCarlsson/bastion/internal/realtime"
 	"github.com/JoakimCarlsson/bastion/internal/session"
 	"github.com/JoakimCarlsson/bastion/internal/store"
+	"github.com/JoakimCarlsson/bastion/internal/users"
 )
 
 func main() {
@@ -68,6 +69,29 @@ func main() {
 		})
 	}
 
+	// Users / JWT auth — only when database is available.
+	var usersSvc *users.Service
+	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
+	if pool.DB() != nil {
+		if len(jwtSecret) == 0 {
+			log.Fatal("JWT_SECRET must be set when DATABASE_URL is configured")
+		}
+		usersStore := users.NewPgxStore(pool.DB())
+		usersSvc = users.NewService(usersStore)
+	}
+
+	var jwtTTL time.Duration
+	if ttlStr := os.Getenv("JWT_TTL"); ttlStr != "" {
+		var err error
+		jwtTTL, err = time.ParseDuration(ttlStr)
+		if err != nil {
+			log.Fatalf("JWT_TTL invalid: %v", err)
+		}
+	}
+	if jwtTTL <= 0 {
+		jwtTTL = 24 * time.Hour
+	}
+
 	corsOrigin := os.Getenv("CORS_ORIGIN")
 	version := os.Getenv("API_VERSION")
 	if version == "" {
@@ -78,7 +102,9 @@ func main() {
 		CORSOrigin: corsOrigin,
 		Version:    version,
 		WebDist:    os.Getenv("WEB_DIST"),
-	}, hub, lobbySvc, sessionMgr)
+		JWTSecret:  jwtSecret,
+		JWTTTL:     jwtTTL,
+	}, hub, lobbySvc, sessionMgr, usersSvc)
 
 	srv := &http.Server{
 		Addr:    addr,
