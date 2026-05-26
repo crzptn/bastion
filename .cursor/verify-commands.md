@@ -312,7 +312,7 @@ curl -s -X POST http://localhost:8080/api/lobbies/$LOBBY_ID/start \
   -H 'Content-Type: application/json' \
   -d '{"player_id":"player-1"}'
 ```
-**Expected:** HTTP 200, lobbyResponse with `"status":"in_progress"` and a non-empty `"session_id"`.
+**Expected:** HTTP 200, lobbyResponse with `"status":"in_game"` and a non-empty `"session_id"`.
 
 ### Session snapshot (no DB — in-memory)
 
@@ -430,7 +430,7 @@ window + a private/incognito window) — both pointing to http://localhost:5173.
 
 5. **Window A — Start the session**
    - Click **Start game** in Window A (host only).
-   - Confirm the lobby status transitions to **in_progress** and a `session_id`
+   - Confirm the lobby status transitions to **in_game** and a `session_id`
      is returned from `POST /api/lobbies/{id}/start`.
 
 6. **Both windows — Enter game view**
