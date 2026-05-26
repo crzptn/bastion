@@ -13,6 +13,7 @@ import (
 	"github.com/JoakimCarlsson/bastion/internal/health"
 	"github.com/JoakimCarlsson/bastion/internal/lobby"
 	"github.com/JoakimCarlsson/bastion/internal/realtime"
+	"github.com/JoakimCarlsson/bastion/internal/session"
 	"github.com/JoakimCarlsson/bastion/internal/store"
 )
 
@@ -29,6 +30,7 @@ func NewHandler(
 	cfg Config,
 	hub *realtime.Hub,
 	lobbies *lobby.Service,
+	sessions *session.Manager,
 ) http.Handler {
 	if cfg.Version != "" {
 		health.Version = cfg.Version
@@ -48,9 +50,12 @@ func NewHandler(
 
 	registerHealth(r)
 	registerReady(r, pool)
-	registerRealtime(r, hub)
+	registerRealtime(r, hub, sessions)
 	if lobbies != nil {
 		registerLobby(r, lobbies)
+	}
+	if sessions != nil {
+		registerSession(r, sessions)
 	}
 	mountSPA(r, cfg.WebDist)
 

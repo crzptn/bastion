@@ -67,19 +67,33 @@ func TestOpcodeConstants(t *testing.T) {
 		{"OpPing", "ping"},
 		{"OpPong", "pong"},
 		{"OpError", "error"},
+		{"OpStateSnapshot", "state_snapshot"},
+		{"OpPlayerAction", "player_action"},
+		{"OpPhaseChange", "phase_change"},
 	}
 	vals := map[string]string{
-		"OpJoin":      OpJoin,
-		"OpLeave":     OpLeave,
-		"OpJoinAck":   OpJoinAck,
-		"OpBroadcast": OpBroadcast,
-		"OpPing":      OpPing,
-		"OpPong":      OpPong,
-		"OpError":     OpError,
+		"OpJoin":          OpJoin,
+		"OpLeave":         OpLeave,
+		"OpJoinAck":       OpJoinAck,
+		"OpBroadcast":     OpBroadcast,
+		"OpPing":          OpPing,
+		"OpPong":          OpPong,
+		"OpError":         OpError,
+		"OpStateSnapshot": OpStateSnapshot,
+		"OpPlayerAction":  OpPlayerAction,
+		"OpPhaseChange":   OpPhaseChange,
 	}
 	for _, c := range cases {
 		if got := vals[c.name]; got != c.want {
 			t.Errorf("%s = %q, want %q", c.name, got, c.want)
 		}
+	}
+}
+
+// TestProtocolVersion verifies that the protocol version is 2 after the
+// session-sync bump (assumption A5).
+func TestProtocolVersion(t *testing.T) {
+	if ProtocolVersion != 2 {
+		t.Errorf("ProtocolVersion: got %d, want 2", ProtocolVersion)
 	}
 }

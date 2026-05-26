@@ -12,6 +12,7 @@ import (
 	bhttp "github.com/JoakimCarlsson/bastion/internal/http"
 	"github.com/JoakimCarlsson/bastion/internal/lobby"
 	"github.com/JoakimCarlsson/bastion/internal/realtime"
+	"github.com/JoakimCarlsson/bastion/internal/session"
 	"github.com/JoakimCarlsson/bastion/internal/store"
 )
 
@@ -46,10 +47,25 @@ func main() {
 	hub := realtime.NewHub()
 	defer hub.Close()
 
+	sessionMgr := session.NewManager()
+	sessionMgr.SetBroadcaster(func(sessionID string, msg realtime.Message) {
+		hub.Broadcast(sessionID, msg)
+	})
+	defer sessionMgr.Close()
+
 	var lobbySvc *lobby.Service
 	if pool.DB() != nil {
 		lobbyStore := lobby.NewPgxStore(pool.DB())
 		lobbySvc = lobby.NewService(lobbyStore)
+	}
+
+	// Wire the SessionStarter callback so lobby.Start launches a session.
+	if lobbySvc != nil {
+		lobbySvc.SetSessionStarter(func(sessionID string, playerIDs []string) {
+			if err := sessionMgr.Start(sessionID, playerIDs); err != nil {
+				log.Printf("session: start %s: %v", sessionID, err)
+			}
+		})
 	}
 
 	corsOrigin := os.Getenv("CORS_ORIGIN")
@@ -62,7 +78,7 @@ func main() {
 		CORSOrigin: corsOrigin,
 		Version:    version,
 		WebDist:    os.Getenv("WEB_DIST"),
-	}, hub, lobbySvc)
+	}, hub, lobbySvc, sessionMgr)
 
 	srv := &http.Server{
 		Addr:    addr,
