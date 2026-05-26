@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { STARTER_MAP, TOWER_DEFS, WAVES, useGameSession } from '../game';
 import { createAudioService, useGameAudio } from '../game/audio';
 import { GameCanvasThree } from '../game/render/GameCanvasThree';
+import { useSessionMirror } from '../game/useSessionMirror';
+import { getOrCreatePlayerId } from '../lib/playerIdentity';
 
 // ---------------------------------------------------------------------------
 // Module-level AudioService singleton (created once per module load; lazy ctx)
@@ -96,8 +98,18 @@ export function PlayPage() {
   const [searchParams] = useSearchParams();
   const lobbyId = searchParams.get('lobby');
 
-  const { state, startWave, placeTowerAt, restart, selectedTowerId, setSelectedTowerId } =
-    useGameSession();
+  // Always call both hooks (React rules). The active one is chosen below.
+  const soloSession = useGameSession();
+  // When lobbyId is present, use the session mirror; pass empty string to
+  // disable the WS connection in solo mode (hook will no-op).
+  const sessionMirror = useSessionMirror(lobbyId ?? '');
+
+  const isCoopMode = lobbyId !== null && lobbyId !== '';
+
+  // Unified interface — the rest of the component is blind to the mode.
+  const state = isCoopMode ? sessionMirror.state : soloSession.state;
+  const selectedTowerId = soloSession.selectedTowerId;
+  const setSelectedTowerId = soloSession.setSelectedTowerId;
 
   // Audio volume UI state — initialised from the service (which reads localStorage)
   const [volume, setVolume] = useState<number>(() => Math.round(audioService.getMasterVolume() * 100));
@@ -131,7 +143,12 @@ export function PlayPage() {
   function handleStartWave() {
     onUserGesture();
     onWaveStart();
-    startWave();
+    if (isCoopMode) {
+      const playerId = getOrCreatePlayerId();
+      sessionMirror.requestStartWave(playerId);
+    } else {
+      soloSession.startWave();
+    }
   }
 
   function handleTowerSelect(id: string) {
@@ -141,18 +158,26 @@ export function PlayPage() {
 
   function handleCellClick(pos: { x: number; y: number }) {
     onUserGesture();
-    placeTowerAt(pos);
-    onTowerPlaced();
+    if (isCoopMode) {
+      const playerId = getOrCreatePlayerId();
+      sessionMirror.placeTowerAt(pos, selectedTowerId, playerId);
+      onTowerPlaced();
+    } else {
+      soloSession.placeTowerAt(pos);
+      onTowerPlaced();
+    }
   }
 
   return (
     <section className="flex flex-col gap-3" style={{ height: 'calc(100vh - 8rem)' }}>
-      {/* Lobby co-op session banner (stub — real sync in #16) */}
-      {lobbyId && (
+      {/* Co-op session banner — shown when ?lobby=<id> is in the URL */}
+      {isCoopMode && (
         <div className="rounded bg-blue-900 border border-blue-700 px-4 py-2 text-sm text-blue-200 flex items-center gap-2">
           <span className="font-medium">Co-op session:</span>
           <code className="text-blue-100 text-xs">{lobbyId}</code>
-          <span className="text-blue-400 text-xs ml-auto">Live sync coming in a future update.</span>
+          <span className={`text-xs ml-auto ${sessionMirror.connected ? 'text-green-400' : 'text-yellow-400'}`}>
+            {sessionMirror.connected ? 'Live' : 'Connecting…'}
+          </span>
         </div>
       )}
       {/* HUD */}
@@ -182,12 +207,14 @@ export function PlayPage() {
         >
           Start wave
         </button>
-        <button
-          className="px-3 py-1 text-sm bg-gray-600 rounded hover:bg-gray-500"
-          onClick={restart}
-        >
-          New game
-        </button>
+        {!isCoopMode && (
+          <button
+            className="px-3 py-1 text-sm bg-gray-600 rounded hover:bg-gray-500"
+            onClick={soloSession.restart}
+          >
+            New game
+          </button>
+        )}
 
         {/* Audio controls */}
         <div className="flex items-center gap-2 ml-auto">

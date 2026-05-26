@@ -16,7 +16,13 @@ func TestSPAIndexServed(t *testing.T) {
 		t.Fatalf("write index.html: %v", err)
 	}
 
-	handler := NewHandler(nil, Config{WebDist: dist}, realtime.NewHub(), nil)
+	handler := NewHandler(
+		nil,
+		Config{WebDist: dist},
+		realtime.NewHub(),
+		nil,
+		nil,
+	)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	rec := httptest.NewRecorder()
@@ -35,6 +41,7 @@ func TestHealthWithoutSPA(t *testing.T) {
 		nil,
 		Config{WebDist: t.TempDir()},
 		realtime.NewHub(),
+		nil,
 		nil,
 	)
 

@@ -13,6 +13,7 @@ import (
 	"github.com/joakimcarlsson/minmux/router"
 
 	"github.com/JoakimCarlsson/bastion/internal/realtime"
+	"github.com/JoakimCarlsson/bastion/internal/session"
 )
 
 const (
@@ -29,7 +30,13 @@ func newConnID() string {
 }
 
 // registerRealtime mounts the WebSocket upgrade endpoint at GET /api/ws.
-func registerRealtime(r *router.Router, hub *realtime.Hub) {
+// Optional ?session=<id> parameter associates the connection with a running
+// session; OpPlayerAction frames are routed to sessionMgr.Submit.
+func registerRealtime(
+	r *router.Router,
+	hub *realtime.Hub,
+	sessionMgr *session.Manager,
+) {
 	r.HandleFunc(
 		http.MethodGet,
 		"/api/ws",
@@ -44,6 +51,8 @@ func registerRealtime(r *router.Router, hub *realtime.Hub) {
 				return
 			}
 
+			sessionID := req.URL.Query().Get("session")
+
 			conn, err := websocket.Accept(w, req, &websocket.AcceptOptions{
 				InsecureSkipVerify: true, // origin checking is a non-goal for M3
 			})
@@ -54,7 +63,7 @@ func registerRealtime(r *router.Router, hub *realtime.Hub) {
 			}
 			conn.SetReadLimit(wsMaxMsgBytes)
 
-			serveWSConn(req.Context(), conn, hub, roomID)
+			serveWSConn(req.Context(), conn, hub, roomID, sessionID, sessionMgr)
 		},
 	)
 }
@@ -86,11 +95,16 @@ func (c *wsClient) Close() error {
 // Ping loop: keep-alive every wsPingInterval; cancels ctx on failure.
 // Read loop: parse incoming frames and act on opcode.
 // On any error or ctx cancel: hub.Leave + conn.CloseNow to release resources.
+//
+// When sessionID is non-empty, OpPlayerAction frames are forwarded to
+// sessionMgr.Submit. sessionMgr may be nil (sessions feature disabled).
 func serveWSConn(
 	parentCtx context.Context,
 	conn *websocket.Conn,
 	hub *realtime.Hub,
 	roomID string,
+	sessionID string,
+	sessionMgr *session.Manager,
 ) {
 	ctx, cancel := context.WithCancel(parentCtx)
 	defer cancel()
@@ -174,6 +188,17 @@ readLoop:
 			}
 		case realtime.OpBroadcast:
 			hub.Broadcast(roomID, msg)
+		case realtime.OpPlayerAction:
+			if sessionMgr != nil && sessionID != "" && msg.Payload != nil {
+				intent, err := session.DecodeIntent(msg.Payload)
+				if err != nil {
+					log.Printf("ws: decode intent %s: %v", clientID, err)
+					continue
+				}
+				if submitErr := sessionMgr.Submit(sessionID, intent); submitErr != nil {
+					log.Printf("ws: submit intent %s: %v", clientID, submitErr)
+				}
+			}
 		default:
 			// Unknown opcodes are silently dropped.
 		}

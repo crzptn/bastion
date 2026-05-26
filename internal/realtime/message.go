@@ -5,17 +5,21 @@ package realtime
 import "encoding/json"
 
 // ProtocolVersion is stamped into every outbound envelope.
-const ProtocolVersion = 1
+// Bumped to 2 for the server-authoritative session sync opcodes.
+const ProtocolVersion = 2
 
 // Opcode constants for the wire protocol.
 const (
-	OpJoin      = "join"
-	OpLeave     = "leave"
-	OpJoinAck   = "join_ack"
-	OpBroadcast = "broadcast"
-	OpPing      = "ping"
-	OpPong      = "pong"
-	OpError     = "error"
+	OpJoin          = "join"
+	OpLeave         = "leave"
+	OpJoinAck       = "join_ack"
+	OpBroadcast     = "broadcast"
+	OpPing          = "ping"
+	OpPong          = "pong"
+	OpError         = "error"
+	OpStateSnapshot = "state_snapshot"
+	OpPlayerAction  = "player_action"
+	OpPhaseChange   = "phase_change"
 )
 
 // Message is the wire envelope for every frame exchanged over the WebSocket.

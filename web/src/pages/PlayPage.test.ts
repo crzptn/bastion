@@ -1,0 +1,52 @@
+/**
+ * PlayPage source-read test — verifies the conditional branch that switches
+ * from useGameSession (solo) to useSessionMirror (co-op) when ?lobby= is set.
+ *
+ * Pattern: pure source-read assertion (#67). No DOM rendering required.
+ */
+
+import { describe, expect, it } from 'bun:test';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
+
+const source = readFileSync(resolve(import.meta.dir, 'PlayPage.tsx'), 'utf-8');
+
+describe('PlayPage source-read assertions', () => {
+  it('imports useSessionMirror', () => {
+    expect(source).toContain("from '../game/useSessionMirror'");
+  });
+
+  it('imports useGameSession (solo mode must still exist)', () => {
+    expect(source).toContain('useGameSession');
+  });
+
+  it('derives isCoopMode from lobbyId', () => {
+    expect(source).toContain('isCoopMode');
+  });
+
+  it('uses sessionMirror.state when in co-op mode', () => {
+    expect(source).toContain('isCoopMode ? sessionMirror.state : soloSession.state');
+  });
+
+  it('sends place_tower intent via sessionMirror.placeTowerAt in co-op mode', () => {
+    expect(source).toContain('sessionMirror.placeTowerAt');
+  });
+
+  it('sends start_wave intent via sessionMirror.requestStartWave in co-op mode', () => {
+    expect(source).toContain('sessionMirror.requestStartWave');
+  });
+
+  it('solo mode still calls soloSession.startWave', () => {
+    expect(source).toContain('soloSession.startWave()');
+  });
+
+  it('solo mode still calls soloSession.placeTowerAt', () => {
+    expect(source).toContain('soloSession.placeTowerAt(pos)');
+  });
+
+  it('restart button is hidden in co-op mode', () => {
+    // The restart button must be behind !isCoopMode guard.
+    expect(source).toContain('!isCoopMode');
+    expect(source).toContain('soloSession.restart');
+  });
+});

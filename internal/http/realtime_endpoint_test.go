@@ -13,6 +13,7 @@ import (
 	"github.com/coder/websocket/wsjson"
 
 	"github.com/JoakimCarlsson/bastion/internal/realtime"
+	"github.com/JoakimCarlsson/bastion/internal/session"
 )
 
 // dialWS connects a WebSocket client to the test server at path.
@@ -52,7 +53,7 @@ func TestTwoClientsReceiveBroadcast(t *testing.T) {
 	hub := realtime.NewHub()
 	t.Cleanup(hub.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, nil))
 	t.Cleanup(srv.Close)
 
 	c1 := dialWS(t, srv, "/api/ws?room=ac1-test")
@@ -119,7 +120,7 @@ func TestDisconnectOneClientRemainsWorking(t *testing.T) {
 	hub := realtime.NewHub()
 	t.Cleanup(hub.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, nil))
 	t.Cleanup(srv.Close)
 
 	goroutinesBefore := runtime.NumGoroutine()
@@ -177,7 +178,7 @@ func TestWsMissingRoom(t *testing.T) {
 	hub := realtime.NewHub()
 	t.Cleanup(hub.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, nil))
 	t.Cleanup(srv.Close)
 
 	url := "ws" + strings.TrimPrefix(srv.URL, "http") + "/api/ws"
@@ -192,4 +193,177 @@ func TestWsMissingRoom(t *testing.T) {
 	if resp != nil && resp.StatusCode != 400 {
 		t.Errorf("status: got %d, want 400", resp.StatusCode)
 	}
+}
+
+// readNextSnapshot reads messages from conn until it finds an OpStateSnapshot.
+// It discards up to maxSkip non-snapshot messages before giving up.
+func readNextSnapshot(
+	t *testing.T,
+	conn *websocket.Conn,
+	maxSkip int,
+) json.RawMessage {
+	t.Helper()
+	for range maxSkip + 1 {
+		msg := readMsg(t, conn)
+		if msg.Type == realtime.OpStateSnapshot {
+			return msg.Payload
+		}
+	}
+	t.Fatalf("did not receive state_snapshot within %d messages", maxSkip+1)
+	return nil
+}
+
+// snapshotFields holds the fields we care about for AC1/AC2 assertions.
+type snapshotFields struct {
+	BaseHP  int               `json:"base_hp"`
+	Enemies []json.RawMessage `json:"enemies"`
+	Towers  []json.RawMessage `json:"towers"`
+	Tick    uint64            `json:"tick"`
+}
+
+func parseSnapshot(t *testing.T, payload json.RawMessage) snapshotFields {
+	t.Helper()
+	var f snapshotFields
+	if err := json.Unmarshal(payload, &f); err != nil {
+		t.Fatalf("parse snapshot: %v", err)
+	}
+	return f
+}
+
+// TestTwoClientsSessionSnapshotParity verifies AC1: two clients joined to the
+// same session room both receive state_snapshot messages that are identical in
+// base_hp after the session starts.
+func TestTwoClientsSessionSnapshotParity(t *testing.T) {
+	const sessID = "parity-test-session"
+
+	hub := realtime.NewHub()
+	t.Cleanup(hub.Close)
+
+	mgr := session.NewManager()
+	mgr.SetBroadcaster(func(id string, msg realtime.Message) {
+		hub.Broadcast(id, msg)
+	})
+	t.Cleanup(mgr.Close)
+
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, mgr))
+	t.Cleanup(srv.Close)
+
+	path := "/api/ws?room=" + sessID + "&session=" + sessID
+	c1 := dialWS(t, srv, path)
+	c2 := dialWS(t, srv, path)
+	defer func() { _ = c1.CloseNow() }()
+	defer func() { _ = c2.CloseNow() }()
+
+	// Drain join handshake messages (join_ack + join broadcasts).
+	drainHandshake := func(conn *websocket.Conn) {
+		// join_ack
+		readMsg(t, conn)
+		// join broadcast (our own join event, plus potentially the other client's)
+		// We'll drain messages for a short window rather than counting exactly.
+	}
+	drainHandshake(c1)
+	drainHandshake(c2)
+
+	// Start the session — snapshots will begin arriving.
+	if err := mgr.Start(sessID, []string{"p1", "p2"}); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	// Drain any residual join-broadcast messages then grab the first snapshots.
+	snap1 := parseSnapshot(t, readNextSnapshot(t, c1, 10))
+	snap2 := parseSnapshot(t, readNextSnapshot(t, c2, 10))
+
+	// AC1: base_hp must be identical for both clients on the same session.
+	if snap1.BaseHP != snap2.BaseHP {
+		t.Errorf("base_hp mismatch: c1=%d c2=%d", snap1.BaseHP, snap2.BaseHP)
+	}
+	if snap1.BaseHP != 20 {
+		t.Errorf("initial base_hp: got %d, want 20", snap1.BaseHP)
+	}
+}
+
+// TestPlaceTowerVisibleToOtherClient verifies AC2: tower placed by client A
+// appears in client B's next snapshot.
+func TestPlaceTowerVisibleToOtherClient(t *testing.T) {
+	const sessID = "tower-visibility-session"
+
+	hub := realtime.NewHub()
+	t.Cleanup(hub.Close)
+
+	mgr := session.NewManager()
+	mgr.SetBroadcaster(func(id string, msg realtime.Message) {
+		hub.Broadcast(id, msg)
+	})
+	t.Cleanup(mgr.Close)
+
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, mgr))
+	t.Cleanup(srv.Close)
+
+	path := "/api/ws?room=" + sessID + "&session=" + sessID
+	c1 := dialWS(t, srv, path)
+	c2 := dialWS(t, srv, path)
+	defer func() { _ = c1.CloseNow() }()
+	defer func() { _ = c2.CloseNow() }()
+
+	// Drain initial handshake for both.
+	readMsg(t, c1) // join_ack
+	readMsg(t, c2) // join_ack
+
+	// Start session.
+	if err := mgr.Start(sessID, []string{"p1", "p2"}); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	// Wait for initial snapshot to confirm session is running.
+	_ = readNextSnapshot(t, c1, 15)
+	_ = readNextSnapshot(t, c2, 15)
+
+	// Client A places a tower at a known buildable cell (0,6) via player_action.
+	intent := session.Intent{
+		Kind:     session.IntentKindPlaceTower,
+		PlayerID: "p1",
+		DefID:    "archer",
+		X:        0,
+		Y:        6,
+	}
+	intentPayload, _ := json.Marshal(intent)
+	actionMsg := realtime.Message{
+		Type:    realtime.OpPlayerAction,
+		Payload: intentPayload,
+		Version: realtime.ProtocolVersion,
+	}
+	sendCtx, sendCancel := context.WithTimeout(
+		context.Background(),
+		3*time.Second,
+	)
+	defer sendCancel()
+	data, _ := actionMsg.Encode()
+	if err := c1.Write(sendCtx, websocket.MessageText, data); err != nil {
+		t.Fatalf("c1 write player_action: %v", err)
+	}
+
+	// Wait for a snapshot on c2 that includes the tower.
+	deadline := time.Now().Add(3 * time.Second)
+	type towerPos struct {
+		X int `json:"x"`
+		Y int `json:"y"`
+	}
+
+	for time.Now().Before(deadline) {
+		payload := readNextSnapshot(t, c2, 20)
+		var s struct {
+			Towers []towerPos `json:"towers"`
+		}
+		if err := json.Unmarshal(payload, &s); err != nil {
+			t.Fatalf("parse tower snapshot: %v", err)
+		}
+		for _, tw := range s.Towers {
+			if tw.X == 0 && tw.Y == 6 {
+				return // AC2 satisfied
+			}
+		}
+	}
+	t.Error(
+		"AC2: tower placed by c1 was not visible in c2 snapshot within deadline",
+	)
 }

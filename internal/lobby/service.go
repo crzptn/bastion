@@ -54,12 +54,22 @@ type JoinInput struct {
 
 // Service provides lobby business logic.
 type Service struct {
-	store Store
+	store          Store
+	sessionStarter func(sessionID string, playerIDs []string)
 }
 
 // NewService constructs a Service backed by the given Store.
 func NewService(store Store) *Service {
 	return &Service{store: store}
+}
+
+// SetSessionStarter installs a callback invoked when a lobby transitions to
+// in_game. The callback receives the generated session_id and the list of
+// player IDs in the lobby. It is optional; when nil, no session is started.
+func (s *Service) SetSessionStarter(
+	fn func(sessionID string, playerIDs []string),
+) {
+	s.sessionStarter = fn
 }
 
 // ErrInvalidInput is returned for missing or malformed create/join inputs.
@@ -206,7 +216,21 @@ func (s *Service) Start(
 		return nil, err
 	}
 
-	return s.store.GetLobby(ctx, lobbyID)
+	updated, err := s.store.GetLobby(ctx, lobbyID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Invoke SessionStarter callback if registered (nil-guard per #66 pattern).
+	if s.sessionStarter != nil {
+		playerIDs := make([]string, 0, len(updated.Players))
+		for _, p := range updated.Players {
+			playerIDs = append(playerIDs, p.PlayerID)
+		}
+		s.sessionStarter(sessionID, playerIDs)
+	}
+
+	return updated, nil
 }
 
 // newUUID generates a random UUID v4 as a hex string with dashes.

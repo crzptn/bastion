@@ -370,3 +370,55 @@ func TestStart_NonOpenLobbyReturnsErrNotOpen(t *testing.T) {
 		t.Errorf("expected ErrNotOpen, got %v", err)
 	}
 }
+
+// TestStart_InvokesSessionStarter verifies that the SessionStarter callback
+// is called when a lobby transitions to in_game (A6 assumption).
+func TestStart_InvokesSessionStarter(t *testing.T) {
+	svc := lobby.NewService(newFakeStore())
+
+	var gotSessionID string
+	var gotPlayerIDs []string
+	svc.SetSessionStarter(func(sessionID string, playerIDs []string) {
+		gotSessionID = sessionID
+		gotPlayerIDs = playerIDs
+	})
+
+	l, err := svc.Create(context.Background(), lobby.CreateInput{
+		Name:         "starter-lobby",
+		HostPlayerID: "player-1",
+		MaxPlayers:   4,
+		DisplayName:  "Player One",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	_, err = svc.Join(context.Background(), l.ID, lobby.JoinInput{
+		PlayerID:    "player-2",
+		DisplayName: "Player Two",
+	})
+	if err != nil {
+		t.Fatalf("Join: %v", err)
+	}
+
+	started, err := svc.Start(context.Background(), l.ID, "player-1")
+	if err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	if gotSessionID == "" {
+		t.Error("expected SessionStarter to be called with a session ID")
+	}
+	if gotSessionID != started.SessionID {
+		t.Errorf(
+			"session ID mismatch: callback got %q, lobby has %q",
+			gotSessionID,
+			started.SessionID,
+		)
+	}
+	if len(gotPlayerIDs) != 2 {
+		t.Errorf(
+			"player count: got %d, want 2; players: %v",
+			len(gotPlayerIDs),
+			gotPlayerIDs,
+		)
+	}
+}
