@@ -15,7 +15,7 @@ func TestSessionSnapshotEndpoint_NotFound(t *testing.T) {
 	mgr := session.NewManager()
 	t.Cleanup(mgr.Close)
 
-	handler := NewHandler(nil, Config{}, realtime.NewHub(), nil, mgr)
+	handler := NewHandler(nil, Config{}, realtime.NewHub(), nil, mgr, nil)
 
 	req := httptest.NewRequest(
 		http.MethodGet,
@@ -53,7 +53,7 @@ func TestSessionSnapshotEndpoint_Found(t *testing.T) {
 		t.Fatalf("Start: %v", err)
 	}
 
-	handler := NewHandler(nil, Config{}, hub, nil, mgr)
+	handler := NewHandler(nil, Config{}, hub, nil, mgr, nil)
 
 	req := httptest.NewRequest(
 		http.MethodGet,

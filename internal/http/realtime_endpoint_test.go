@@ -53,7 +53,7 @@ func TestTwoClientsReceiveBroadcast(t *testing.T) {
 	hub := realtime.NewHub()
 	t.Cleanup(hub.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, nil))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, nil, nil))
 	t.Cleanup(srv.Close)
 
 	c1 := dialWS(t, srv, "/api/ws?room=ac1-test")
@@ -120,7 +120,7 @@ func TestDisconnectOneClientRemainsWorking(t *testing.T) {
 	hub := realtime.NewHub()
 	t.Cleanup(hub.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, nil))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, nil, nil))
 	t.Cleanup(srv.Close)
 
 	goroutinesBefore := runtime.NumGoroutine()
@@ -178,7 +178,7 @@ func TestWsMissingRoom(t *testing.T) {
 	hub := realtime.NewHub()
 	t.Cleanup(hub.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, nil))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, nil, nil))
 	t.Cleanup(srv.Close)
 
 	url := "ws" + strings.TrimPrefix(srv.URL, "http") + "/api/ws"
@@ -245,7 +245,7 @@ func TestTwoClientsSessionSnapshotParity(t *testing.T) {
 	})
 	t.Cleanup(mgr.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, mgr))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, mgr, nil))
 	t.Cleanup(srv.Close)
 
 	path := "/api/ws?room=" + sessID + "&session=" + sessID
@@ -296,7 +296,7 @@ func TestPlaceTowerVisibleToOtherClient(t *testing.T) {
 	})
 	t.Cleanup(mgr.Close)
 
-	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, mgr))
+	srv := httptest.NewServer(NewHandler(nil, Config{}, hub, nil, mgr, nil))
 	t.Cleanup(srv.Close)
 
 	path := "/api/ws?room=" + sessID + "&session=" + sessID
